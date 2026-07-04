@@ -1,0 +1,3526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Manawa Honey — Stock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4E2646">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Manawa Stock">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon.svg">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>/* qrcode-generator (c) Kazuhiko Arase, MIT — bundled for offline QR */
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --paper:#FBF7EF; --surface:#fff; --ink:#2A2218; --muted:#8A7E6B;
+  --honey:#E0A422; --honey-d:#A8690F; --line:#ECE3D2; --line-d:#D9CCB3;
+  --ok:#2F8F5B; --warn:#C0502E; --warn-bg:#FBEBE5;
+  --waitawa:#1F6F8B; --mataatua:#8A5A2B;
+  --r:14px; --sh:0 1px 2px rgba(42,34,24,.06),0 4px 16px rgba(42,34,24,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.disp{font-family:Fraunces,Georgia,serif}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px}
+.hidden{display:none!important}
+
+/* layout */
+.app{max-width:1080px;margin:0 auto;padding:0 16px 96px}
+header.bar{position:sticky;top:0;z-index:30;background:rgba(251,247,239,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin:0 -16px 14px;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:Fraunces;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.logo{width:30px;height:30px;border-radius:8px;background:radial-gradient(circle at 35% 30%,#F2C24E,var(--honey) 55%,var(--honey-d));box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)}
+.brand small{display:block;font-family:Inter;font-weight:500;font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.spacer{flex:1}
+.who{font-size:13px;color:var(--muted)}
+.who b{color:var(--ink)}
+.syncpill{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.syncpill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.9}
+.s-ok{background:#E3F2E9;color:#1E6B43}
+.s-wait{background:#F7E9CB;color:#946A11;cursor:pointer}
+.s-off{background:#EFE7DA;color:#8A7E6B}
+.s-local{background:#EFE7DA;color:#8A7E6B}
+@media(max-width:560px){.who{display:none}}
+
+/* nav */
+nav.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px;overflow:auto}
+nav.tabs button{flex:1;min-width:max-content;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:14px;padding:9px 14px;border-radius:9px;white-space:nowrap}
+nav.tabs button.on{background:var(--ink);color:#fff}
+
+/* buttons */
+.btn{border:1px solid var(--line-d);background:var(--surface);color:var(--ink);font-weight:600;font-size:14px;padding:9px 14px;border-radius:10px;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--honey)}
+.btn.pri{background:var(--honey);border-color:var(--honey-d);color:#3a2708}
+.btn.pri:hover{background:#EBB23A}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:8px}
+.btn.danger{color:var(--warn);border-color:#E7C7BC}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* cards / stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh)}
+.stat .k{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.stat .v{font-family:Fraunces;font-weight:700;font-size:26px;margin-top:2px;line-height:1}
+.stat .v small{font-family:Inter;font-size:12px;color:var(--muted);font-weight:600}
+.stat.loc-w{border-left:4px solid var(--waitawa)}
+.stat.loc-m{border-left:4px solid var(--mataatua)}
+@media(max-width:720px){.stats{grid-template-columns:1fr 1fr}}
+
+/* low stock banner */
+.alert{background:var(--warn-bg);border:1px solid #EBC9BD;border-radius:var(--r);padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start}
+.alert b{color:var(--warn)}
+.alert .x{color:var(--warn);font-size:18px;line-height:1}
+
+/* toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line-d);border-radius:10px;padding:8px 12px;cursor:pointer;user-select:none}
+.chk input{width:16px;height:16px;accent-color:var(--honey-d);cursor:pointer}
+.search{flex:1;min-width:160px;position:relative}
+.search input{width:100%;padding:10px 12px 10px 34px;border:1px solid var(--line-d);border-radius:10px;background:var(--surface)}
+.search svg{position:absolute;left:10px;top:11px;color:var(--muted)}
+
+/* product group */
+.group{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;box-shadow:var(--sh);overflow:hidden}
+.group>.head{display:flex;align-items:center;gap:12px;padding:13px 15px;cursor:pointer}
+.group .name{font-family:Fraunces;font-weight:600;font-size:17px}
+.group .sub{font-size:12px;color:var(--muted);margin-top:1px}
+.chev{transition:transform .18s;color:var(--muted)}
+.group.open .chev{transform:rotate(90deg)}
+.totals{display:flex;gap:18px;align-items:center;margin-left:auto;text-align:right}
+.tot .n{font-family:Fraunces;font-weight:700;font-size:19px;line-height:1}
+.tot .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.tot.w .n{color:var(--waitawa)} .tot.m .n{color:var(--mataatua)}
+@media(max-width:600px){.totals{gap:12px}.tot.grand{display:none}}
+.lowpill{background:var(--warn);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.03em}
+.blendtag{background:#EFE7DA;color:#8A5A2B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
+.mgotag{background:#EAF0E4;color:#4B6B2E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
+
+.batches{border-top:1px solid var(--line);background:#FCFAF4}
+.batch{display:grid;grid-template-columns:1.4fr .8fr .8fr 1.2fr;gap:10px;align-items:center;padding:11px 15px;border-bottom:1px solid var(--line)}
+.batch:last-child{border-bottom:0}
+.batch .b-id{font-weight:600;font-size:14px}
+.batch .b-meta{font-size:11.5px;color:var(--muted);margin-top:1px}
+.b-loc{font-size:13px}
+.b-loc b{font-family:Fraunces;font-size:15px}
+.b-loc.w b{color:var(--waitawa)} .b-loc.m b{color:var(--mataatua)}
+.b-loc.low{color:var(--warn)} .b-loc.low b{color:var(--warn)}
+.b-acts{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}
+@media(max-width:680px){.batch{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.b-acts{grid-column:1/-1;justify-content:flex-start}}
+
+/* table (transactions) */
+.tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:680px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+td{padding:10px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+.ttype{font-weight:700;font-size:11px;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.t-IN{background:#E3F2E9;color:#1E6B43}
+.t-OUT{background:#FBE6E0;color:#B2451F}
+.t-MOVEIN{background:#E5F0F4;color:#1F6F8B}
+.t-MOVEOUT{background:#E5F0F4;color:#1F6F8B}
+.t-ADJUSTMENT{background:#F2EAD8;color:#946A11}
+.qpos{color:var(--ok);font-weight:600}.qneg{color:var(--warn);font-weight:600}
+.t-acts{white-space:nowrap;text-align:right}
+.t-acts .btn{padding:5px 9px}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(42,34,24,.42);display:flex;align-items:flex-end;justify-content:center;z-index:60;padding:0}
+@media(min-width:640px){.scrim{align-items:center;padding:20px}}
+.modal{background:var(--surface);width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:20px;max-height:92vh;overflow:auto;box-shadow:0 -8px 40px rgba(0,0,0,.2)}
+@media(min-width:640px){.modal{border-radius:18px}}
+.modal h3{margin:0 0 4px;font-size:21px}
+.modal .desc{color:var(--muted);font-size:13px;margin:0 0 16px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line-d);border-radius:10px;background:var(--surface);color:var(--ink)}
+.field textarea{min-height:64px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:4px}
+.seg button{flex:1;border:0;background:transparent;color:var(--muted);font-weight:600;padding:9px;border-radius:8px;font-size:13.5px}
+.seg button.on{background:var(--ink);color:#fff}
+.modal-acts{display:flex;gap:10px;margin-top:8px}
+.modal-acts .btn{flex:1;justify-content:center;padding:12px}
+.movearrow{text-align:center;color:var(--honey-d);font-weight:700;padding:4px 0}
+.preview{background:var(--paper);border:1px dashed var(--line-d);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted);margin-bottom:13px}
+.preview b{color:var(--ink)}
+
+/* login */
+.login{max-width:380px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:30px 26px;box-shadow:var(--sh)}
+.login .logo{width:46px;height:46px;border-radius:12px;margin-bottom:14px}
+.login h1{margin:0 0 2px;font-size:25px}
+.login p{margin:0 0 22px;color:var(--muted);font-size:13.5px}
+.err{color:var(--warn);font-size:13px;margin-top:10px;min-height:18px}
+
+/* settings */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px;margin-bottom:14px}
+.panel h3{margin:0 0 3px;font-size:18px}
+.panel p.sub{margin:0 0 14px;color:var(--muted);font-size:13px}
+.modepill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
+.mode-cloud{background:#E5F0F4;color:var(--waitawa)} .mode-local{background:#F2EAD8;color:#946A11}
+.userrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.userrow:last-child{border-bottom:0}
+.ava{width:32px;height:32px;border-radius:9px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--honey-d)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:30px;font-size:14px;font-weight:500;opacity:0;transition:.25s;z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;color:var(--muted);padding:40px 20px}
+.empty b{display:block;color:var(--ink);font-family:Fraunces;font-size:17px;margin-bottom:4px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.locdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.dot-w{background:var(--waitawa)} .dot-m{background:var(--mataatua)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView">
+  <div class="login">
+    <div class="logo"></div>
+    <h1 class="disp">Manawa Honey</h1>
+    <p>Stock & shed transfers. Sign in to continue.</p>
+    <div class="field"><label>Username</label><input id="li-user" autocomplete="username" placeholder="username"/></div>
+    <div class="field"><label>Password</label><input id="li-pass" type="password" autocomplete="current-password" placeholder="password"/></div>
+    <label class="chk" style="margin-bottom:14px;width:100%"><input type="checkbox" id="li-stay" checked/> Stay logged in on this device</label>
+    <button class="btn pri" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign in</button>
+    <div class="err" id="li-err"></div>
+    <div class="small muted" id="li-hint"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="app hidden">
+  <header class="bar">
+    <div class="brand"><span class="logo"></span><span>Manawa Honey<small>Waitawa · Mataatua</small></span></div>
+    <div class="spacer"></div>
+    <span id="syncBadge"></span>
+    <span class="who">Signed in: <b id="curUser">—</b></span>
+    <button class="btn sm ghost" onclick="logout()">Sign out</button>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="dashboard" class="on" onclick="setTab('dashboard')">Stock</button>
+    <button data-tab="transactions" onclick="setTab('transactions')">History</button>
+    <button data-tab="team" onclick="setTab('team')">Team</button>
+    <button data-tab="settings" onclick="setTab('settings')">Settings & Export</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard">
+    <div id="lowAlert"></div>
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" placeholder="Search product, batch, MGO, or shed…" oninput="render()"/>
+      </div>
+      <label class="chk" title="Hide batches sitting at 0 jars"><input type="checkbox" id="hideEmpty" onchange="onHideEmpty()"/> Hide empty (0)</label>
+      <select id="stockFilter" class="btn" onchange="render()" style="padding-right:30px">
+        <option value="all">All batches</option>
+        <option value="instock">In stock</option>
+        <option value="zero">Zero stock (0 jars)</option>
+        <option value="low">Low stock</option>
+        <option value="waitawa">Waitawa · production</option>
+        <option value="mataatua">Mataatua · labelling</option>
+      </select>
+      <button class="btn" onclick="openScanner()">Scan</button>
+      <button class="btn" onclick="printLabelsVisible()">Labels</button>
+      <button class="btn pri" onclick="openProduct()">+ Add product</button>
+    </div>
+    <div id="groups"></div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section id="tab-transactions" class="hidden">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="tq" placeholder="Search history…" oninput="renderTxns()"/>
+      </div>
+      <select id="tfilter" class="btn" onchange="renderTxns()" style="padding-right:30px">
+        <option value="">All types</option><option>IN</option><option>OUT</option>
+        <option value="MOVE">MOVE</option><option>ADJUSTMENT</option>
+      </select>
+    </div>
+    <div class="tablewrap"><table id="txnTable"></table></div>
+  </section>
+
+  <!-- TEAM -->
+  <section id="tab-team" class="hidden">
+    <div class="panel">
+      <h3 class="disp">Team logins</h3>
+      <p class="sub">Anyone signed in can add or remove team members.</p>
+      <div id="userList"></div>
+      <div class="row2" style="margin-top:14px">
+        <div class="field" style="margin:0"><label>New username</label><input id="nu-user"/></div>
+        <div class="field" style="margin:0"><label>Password</label><input id="nu-pass" type="password"/></div>
+      </div>
+      <button class="btn pri" style="margin-top:12px" onclick="addUser()">Add team member</button>
+      <div class="err" id="nu-err"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="hidden">
+    <div class="panel" id="installPanel" style="display:none">
+      <h3 class="disp">Install app</h3>
+      <p class="sub" id="installMsg">Add Manawa Stock to your home screen — it opens full-screen and works offline.</p>
+      <button class="btn pri" id="installBtn" onclick="installApp()">Install app</button>
+    </div>
+    <div class="panel">
+      <h3 class="disp">Export &amp; import</h3>
+      <p class="sub">Export a workbook with live stock (grouped + by batch) and the full transaction history — or import stock from a spreadsheet.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="exportLayout" class="btn" style="padding-right:30px">
+          <option value="both">Grouped + each batch</option>
+          <option value="batches">Each batch separate</option>
+          <option value="grouped">Grouped by product</option>
+        </select>
+        <select id="exportScope" class="btn" style="padding-right:30px">
+          <option value="all">All batches</option>
+          <option value="jars">Only batches with jars</option>
+          <option value="empty">Only empty batches (0)</option>
+        </select>
+        <button class="btn pri" onclick="exportXlsx()">Download Excel (.xlsx)</button>
+        <button class="btn" onclick="downloadTemplate(false)">Download import template</button>
+        <button class="btn" onclick="downloadTemplate(true)">Blank count sheet (0 jars)</button>
+        <button class="btn" onclick="document.getElementById('xlsxFile').click()">Import from .xlsx</button>
+        <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv" class="hidden" onchange="onImportFile(event)"/>
+      </div>
+      <p class="small muted" style="margin-top:10px"><b>Layout</b> chooses how stock is laid out: grouped rolls each product into one line; <b>Each batch separate</b> gives every batch its own row (so Puatane 3kg comes out as its 3 batches). The batches sheet always lists each batch by name. Import reads a sheet with columns like Product name, Batch, Jar size, Waitawa, Mataatua, Reorder point, MGO, Blend, Comments — re-importing a file exported here works directly.</p>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
+        <h3 class="disp" style="margin:0">Data storage</h3>
+        <span id="modePill" class="modepill"></span>
+      </div>
+      <p class="sub">Local keeps data on this device. Cloud sync shares stock across every phone and computer in real time using your Supabase project.</p>
+      <div class="field"><label>Supabase project URL</label><input id="sb-url" placeholder="https://xxxx.supabase.co"/></div>
+      <div class="field"><label>Supabase publishable (or anon) key</label><input id="sb-key" placeholder="sb_publishable_…  or  eyJhbGci…"/><div class="small muted" style="margin-top:5px">Use the publishable key (or legacy anon key) — never the secret / service_role key.</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn pri" onclick="connectCloud()">Save & connect</button>
+        <button class="btn" onclick="disconnectCloud()">Use local only</button>
+        <button class="btn danger" onclick="wipeAll()">Wipe all data</button>
+      </div>
+      <p class="small muted" style="margin-top:12px">Run <b>supabase_setup.sql</b> in your Supabase SQL editor once before connecting — it creates the tables and loads your products.</p>
+    </div>
+    <div class="panel">
+      <h3 class="disp">WooCommerce</h3>
+      <p class="sub">Push finished stock to your website. Each product needs its WooCommerce product ID set (edit a product to add it). Requires cloud sync and the <b>woo-sync</b> Edge Function deployed — see WOOCOMMERCE_SETUP.md.</p>
+      <div class="field"><label>woo-sync function URL</label><input id="woo-fn" placeholder="https://xxxx.supabase.co/functions/v1/woo-sync"/></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn pri" onclick="syncWoo()">Push stock to WooCommerce</button>
+        <span class="small muted" id="woo-mapped"></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="modalHost"></div>
+<div id="toast"></div>
+
+<script>
+const SEED = {"products":[],"transactions":[]};
+const LOCATIONS = ["Waitawa","Mataatua"];
+const LS_DATA="manawa_data_v1", LS_CFG="manawa_cfg_v1", SS_USER="manawa_user",
+      LS_QUEUE="manawa_queue_v1", LS_CACHE="manawa_cloudcache_v1";
+
+let state={products:[],transactions:[],users:[]};
+let mode="local", sb=null, curUser=null, tab="dashboard", openGroups={};
+let online = navigator.onLine, queue = [];
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+const total=p=>(+p.waitawa||0)+(+p.mataatua||0);
+const isLow=p=>(+p.min_stock_alert||0)>0 && total(p)<(+p.min_stock_alert||0);
+function nowISO(){return new Date().toISOString();}
+function fmtDate(d){const x=new Date(d);return isNaN(x)?esc(d):x.toLocaleString([], {year:"2-digit",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});}
+function uid(p){return p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ---------- storage layer ---------- */
+function loadLocal(){try{return JSON.parse(localStorage.getItem(LS_DATA))}catch(e){return null}}
+function saveLocal(){localStorage.setItem(LS_DATA,JSON.stringify(state));}
+function seedLocal(){
+  state={products:JSON.parse(JSON.stringify(SEED.products)),
+         transactions:JSON.parse(JSON.stringify(SEED.transactions)),
+         users:[{id:"u_admin",username:"admin",password_hash:"8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"}]};
+  saveLocal();
+}
+/* offline queue + cached cloud snapshot */
+function loadQueue(){try{return JSON.parse(localStorage.getItem(LS_QUEUE))||[]}catch(e){return[]}}
+function saveQueue(){localStorage.setItem(LS_QUEUE,JSON.stringify(queue));updateSyncBadge();}
+function enqueue(op){op.qid=uid("q");op.ts=Date.now();queue.push(op);saveQueue();}
+function saveCache(){localStorage.setItem(LS_CACHE,JSON.stringify(state));}
+function loadCache(){try{return JSON.parse(localStorage.getItem(LS_CACHE))}catch(e){return null}}
+
+async function initStore(){
+  queue=loadQueue();
+  const cfg=JSON.parse(localStorage.getItem(LS_CFG)||"null");
+  if(cfg&&cfg.url&&cfg.key&&window.supabase){
+    mode="cloud";
+    try{ sb=window.supabase.createClient(cfg.url,cfg.key); }catch(e){ sb=null; }
+    const cached=loadCache(); if(cached&&cached.products) state=cached;   // show last-known data first
+    if(sb&&online){
+      try{ await pullCloud(); saveCache(); await flushQueue(); }
+      catch(e){ console.warn("offline / unreachable, using cached data",e); online=false; }
+    }
+    return;
+  }
+  mode="local";
+  const d=loadLocal(); if(d&&d.products) state=d; else seedLocal();
+}
+async function pullCloud(){
+  const [p,t,u]=await Promise.all([
+    sb.from("products").select("*").order("product_name"),
+    sb.from("transactions").select("*").order("added",{ascending:false}),
+    sb.from("app_users").select("*").order("username")
+  ]);
+  if(p.error||t.error||u.error) throw (p.error||t.error||u.error);
+  state.products=p.data||[]; state.transactions=t.data||[]; state.users=u.data||[];
+}
+/* apply one queued op against Supabase */
+async function applyOp(op){
+  const q=sb.from(op.table);
+  let r;
+  if(op.kind==="upsert") r=await q.upsert(op.payload);
+  else if(op.kind==="insert") r=await q.insert(op.payload);
+  else if(op.kind==="delete") r=await q.delete().eq("id",op.id);
+  if(r&&r.error) throw r.error;
+}
+/* cloud write: try now, otherwise queue. Local state already updated by caller. */
+async function cloudWrite(op){
+  saveCache();
+  if(!sb||!online){ enqueue(op); return; }
+  try{ await applyOp(op); await flushQueue(); }
+  catch(e){ online=false; enqueue(op); updateSyncBadge(); }
+}
+async function flushQueue(){
+  if(mode!=="cloud"||!sb||!online||!queue.length) return;
+  for(const op of [...queue]){
+    try{ await applyOp(op); queue=queue.filter(x=>x.qid!==op.qid); saveQueue(); }
+    catch(e){ online=false; break; }   // stop on first failure, keep the rest for next time
+  }
+  updateSyncBadge();
+}
+async function persistProduct(p){ if(mode==="cloud") await cloudWrite({kind:"upsert",table:"products",payload:p}); else saveLocal(); }
+async function removeProduct(id){ if(mode==="cloud") await cloudWrite({kind:"delete",table:"products",id}); else saveLocal(); }
+async function persistTxns(arr){ if(mode==="cloud"){ for(const t of arr) await cloudWrite({kind:"insert",table:"transactions",payload:t}); } else saveLocal(); }
+async function persistUser(u){ if(mode==="cloud") await cloudWrite({kind:"upsert",table:"app_users",payload:u}); else saveLocal(); }
+async function removeUserDB(id){ if(mode==="cloud") await cloudWrite({kind:"delete",table:"app_users",id}); else saveLocal(); }
+
+/* connection changes */
+window.addEventListener("offline",()=>{online=false;updateSyncBadge();});
+window.addEventListener("online",async()=>{
+  online=true; updateSyncBadge();
+  await flushQueue();
+  if(mode==="cloud"&&sb&&!queue.length){ try{ await pullCloud(); saveCache(); if(curUser) renderAll(); }catch(e){} }
+  updateSyncBadge();
+});
+
+function updateSyncBadge(){
+  const el=$("#syncBadge"); if(!el) return;
+  if(mode!=="cloud"){ el.innerHTML='<span class="syncpill s-local" title="Data is stored on this device">On this device</span>'; return; }
+  const n=queue.length;
+  if(!online&&n) el.innerHTML=`<span class="syncpill s-wait" onclick="flushQueue()" title="Tap to retry">Offline · ${n} waiting</span>`;
+  else if(!online) el.innerHTML='<span class="syncpill s-off">Offline</span>';
+  else if(n) el.innerHTML=`<span class="syncpill s-wait" onclick="flushQueue()">Syncing ${n}…</span>`;
+  else el.innerHTML='<span class="syncpill s-ok">Synced</span>';
+}
+
+/* ---------- auth ---------- */
+async function doLogin(){
+  const u=$("#li-user").value.trim(), p=$("#li-pass").value;
+  if(!u||!p){$("#li-err").textContent="Enter your username and password.";return;}
+  const h=await sha256(p);
+  const found=state.users.find(x=>x.username.toLowerCase()===u.toLowerCase()&&x.password_hash===h);
+  if(!found){$("#li-err").textContent="Username or password is incorrect.";return;}
+  curUser=found;
+  const sess=JSON.stringify({id:found.id,username:found.username});
+  const stay=$("#li-stay")?$("#li-stay").checked:false;
+  sessionStorage.removeItem(SS_USER); localStorage.removeItem(SS_USER);
+  if(stay) localStorage.setItem(SS_USER,sess); else sessionStorage.setItem(SS_USER,sess);
+  showApp();
+}
+function logout(){sessionStorage.removeItem(SS_USER);localStorage.removeItem(SS_USER);curUser=null;location.reload();}
+function showApp(){
+  $("#loginView").classList.add("hidden"); $("#appView").classList.remove("hidden");
+  $("#curUser").textContent=curUser.username;
+  if($("#hideEmpty")) $("#hideEmpty").checked = localStorage.getItem("manawa_hideempty")!=="0"; // default on
+  renderAll();
+}
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  tab=t;
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  ["dashboard","transactions","team","settings"].forEach(s=>$("#tab-"+s).classList.toggle("hidden",s!==t));
+  if(t==="transactions")renderTxns(); if(t==="team")renderUsers(); if(t==="settings")renderSettings();
+}
+
+/* ---------- grouping & dashboard ---------- */
+function productThreshold(items){return Math.max(0,...items.map(x=>+x.min_stock_alert||0));}
+function groupProducts(){
+  const m=new Map();
+  for(const p of state.products){
+    const name=p.product_name.trim(), blend=(p.blend||"").trim(), mgo=(p.mgo||"").trim();
+    const k=name+"|||"+blend+"|||"+mgo;
+    if(!m.has(k))m.set(k,{name,blend,mgo,items:[]}); m.get(k).items.push(p);
+  }
+  return [...m.values()].map(({name,blend,mgo,items})=>{
+    const grand=items.reduce((s,x)=>s+total(x),0);
+    const threshold=productThreshold(items);
+    return {
+      name, blend, mgo, key:name+"|||"+blend+"|||"+mgo, items,
+      waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
+      mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      grand, threshold,
+      low: threshold>0 && grand<=threshold
+    };
+  }).sort((a,b)=>a.name.localeCompare(b.name)||a.blend.localeCompare(b.blend)||a.mgo.localeCompare(b.mgo));
+}
+function renderStats(){
+  const groups=groupProducts();
+  const w=state.products.reduce((s,p)=>s+(+p.waitawa||0),0);
+  const m=state.products.reduce((s,p)=>s+(+p.mataatua||0),0);
+  const low=groups.filter(g=>g.low).length;
+  $("#stats").innerHTML=`
+   <div class="stat"><div class="k">Products</div><div class="v">${groups.length}<small> · ${state.products.length} batches</small></div></div>
+   <div class="stat loc-w"><div class="k"><span class="locdot dot-w"></span>Waitawa · production</div><div class="v">${w.toLocaleString()}<small> units</small></div></div>
+   <div class="stat loc-m"><div class="k"><span class="locdot dot-m"></span>Mataatua · labelling</div><div class="v">${m.toLocaleString()}<small> units</small></div></div>
+   <div class="stat"><div class="k">Low stock</div><div class="v" style="color:${low?'var(--warn)':'var(--ok)'}">${low}<small> ${low===1?'product':'products'}</small></div></div>`;
+}
+function renderLowAlert(){
+  const lows=groupProducts().filter(g=>g.low);
+  if(!lows.length){$("#lowAlert").innerHTML="";return;}
+  const names=lows.map(g=>`${g.name}${g.mgo?' MGO '+g.mgo:''}${g.blend?' ('+g.blend+')':''}: ${g.grand.toLocaleString()} in stock (reorder at ${g.threshold.toLocaleString()})`);
+  $("#lowAlert").innerHTML=`<div class="alert"><span class="x">!</span><div><b>Low stock — ${lows.length} ${lows.length===1?'product needs':'products need'} attention.</b><div class="small" style="margin-top:4px">${names.map(esc).join("<br>")}</div></div></div>`;
+}
+function render(){
+  renderStats(); renderLowAlert();
+  const q=($("#q").value||"").toLowerCase().trim();
+  const f=($("#stockFilter")&&$("#stockFilter").value)||"all";
+  const hideEmpty=$("#hideEmpty")?$("#hideEmpty").checked:true;
+  const dropEmpty=hideEmpty&&f!=="zero"&&f!=="low";   // keep empties visible in Zero and Low views
+  const gkey=p=>p.product_name.trim()+"|||"+(p.blend||"").trim()+"|||"+(p.mgo||"").trim();
+  const lowKeys=new Set(groupProducts().filter(g=>g.low).map(g=>g.key));
+  const passStock=p=>{
+    if(dropEmpty&&total(p)===0)return false;
+    return f==="instock"?total(p)>0:f==="zero"?total(p)===0:f==="low"?lowKeys.has(gkey(p)):f==="waitawa"?(+p.waitawa||0)>0:f==="mataatua"?(+p.mataatua||0)>0:true;
+  };
+  const active=!!q||f!=="all";
+  let groups=groupProducts().map(g=>{
+    const nameMatch=q&&(g.name.toLowerCase().includes(q)||(g.blend||"").toLowerCase().includes(q)||(g.mgo||"").toLowerCase().includes(q));
+    const items=g.items.filter(p=>{
+      const locMatch = q && ( ((q==="waitawa"||q==="production")&&(+p.waitawa||0)>0) || ((q==="mataatua"||q==="labelling"||q==="dispatch")&&(+p.mataatua||0)>0) );
+      const searchOk=!q||nameMatch||locMatch||(p.batch||"").toLowerCase().includes(q)||(p.sku||"").toLowerCase().includes(q)||(p.mgo||"").toLowerCase().includes(q)||(p.blend||"").toLowerCase().includes(q);
+      return searchOk&&passStock(p);
+    });
+    if(!items.length)return null;
+    return {name:g.name,blend:g.blend,mgo:g.mgo,key:g.key,items,threshold:g.threshold,low:g.low,
+      waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
+      mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      grand:items.reduce((s,x)=>s+total(x),0)};
+  }).filter(Boolean);
+  const host=$("#groups");
+  if(!groups.length){
+    const msg=f==="zero"?"No empty batches — nothing is at 0 jars.":f==="low"?"Nothing is low on stock.":f==="instock"?"No batches in stock.":f==="waitawa"?"No stock at Waitawa (production).":f==="mataatua"?"No stock at Mataatua (labelling).":dropEmpty?"All batches are empty and hidden — untick \u201cHide empty (0)\u201d to see them.":"Try a different search, or add a product.";
+    host.innerHTML=`<div class="empty"><b>No batches found</b>${msg}</div>`;return;
+  }
+  host.innerHTML=groups.map(g=>{
+    const open=active||openGroups[g.key];
+    const batches=g.items.map(p=>{
+      return `<div class="batch">
+        <div><div class="b-id">${esc(p.batch||'No batch')}</div><div class="b-meta">${esc(p.jar_size||'')}${p.date?' · '+esc(p.date):''}${p.comments?' · 💬 '+esc(p.comments):''}</div></div>
+        <div class="b-loc w"><span class="locdot dot-w"></span>Waitawa <b>${(+p.waitawa||0).toLocaleString()}</b></div>
+        <div class="b-loc m"><span class="locdot dot-m"></span>Mataatua <b>${(+p.mataatua||0).toLocaleString()}</b></div>
+        <div class="b-acts">
+          <button class="btn sm pri" onclick="openMove('${p.id}')">Move</button>
+          <button class="btn sm" onclick="openTxn('${p.id}','IN')">In</button>
+          <button class="btn sm" onclick="openTxn('${p.id}','OUT')">Out</button>
+          <button class="btn sm" onclick="openTxn('${p.id}','ADJUSTMENT')">Adjust</button>
+          <button class="btn sm ghost" onclick="openLabel('${p.id}')">Label</button>
+          <button class="btn sm ghost" onclick="openProduct('${p.id}')">Edit</button>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="group ${open?'open':''}">
+      <div class="head" onclick="toggleGroup('${esc(g.key).replace(/'/g,"\\'")}')">
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
+        <div><div class="name">${esc(g.name)} ${g.mgo?`<span class="mgotag">MGO ${esc(g.mgo)}</span>`:''} ${g.blend?`<span class="blendtag">${esc(g.blend)}</span>`:''} ${g.low?'<span class="lowpill">LOW</span>':''}</div><div class="sub">${g.items.length} ${g.items.length===1?'batch':'batches'}${active?' shown':''}${g.low?` · ${g.grand.toLocaleString()} ≤ reorder ${g.threshold.toLocaleString()}`:''}</div></div>
+        <div class="totals">
+          <div class="tot w"><div class="n">${g.waitawa.toLocaleString()}</div><div class="l">Waitawa</div></div>
+          <div class="tot m"><div class="n">${g.mataatua.toLocaleString()}</div><div class="l">Mataatua</div></div>
+          <div class="tot grand"><div class="n">${g.grand.toLocaleString()}</div><div class="l">Total</div></div>
+        </div>
+      </div>
+      ${open?`<div class="batches">${batches}</div>`:""}
+    </div>`;
+  }).join("");
+}
+function toggleGroup(n){openGroups[n]=!openGroups[n];render();}
+function onHideEmpty(){localStorage.setItem("manawa_hideempty",$("#hideEmpty").checked?"1":"0");render();}
+
+/* ---------- transactions view ---------- */
+function renderTxns(){
+  const q=($("#tq").value||"").toLowerCase().trim();
+  const f=$("#tfilter").value;
+  let rows=[...state.transactions].sort((a,b)=>new Date(b.added)-new Date(a.added));
+  if(f)rows=rows.filter(r=>f==="MOVE"?r.transaction_type.startsWith("MOVE"):r.transaction_type===f);
+  if(q)rows=rows.filter(r=>(r.product_name||"").toLowerCase().includes(q)||(txnBatch(r)||"").toLowerCase().includes(q)||(r.location||"").toLowerCase().includes(q)||(r.team_member||"").toLowerCase().includes(q)||(r.comments||"").toLowerCase().includes(q));
+  const cls=t=>"t-"+t.replace(/\s/g,"");
+  $("#txnTable").innerHTML=`<thead><tr><th>When</th><th>Product</th><th>Batch</th><th>Type</th><th>Qty</th><th>Location</th><th>By</th><th>Note</th><th></th></tr></thead><tbody>${
+    rows.length?rows.map(r=>`<tr>
+      <td class="small muted">${fmtDate(r.added)}</td>
+      <td>${esc(r.product_name)}</td>
+      <td class="small">${esc(txnBatch(r)||'—')}</td>
+      <td><span class="ttype ${cls(r.transaction_type)}">${esc(r.transaction_type)}</span></td>
+      <td class="${(+r.quantity)>=0?'qpos':'qneg'}">${(+r.quantity)>=0?'+':''}${(+r.quantity).toLocaleString()}</td>
+      <td><span class="locdot ${r.location&&r.location.trim()==='Waitawa'?'dot-w':'dot-m'}"></span>${esc((r.location||'').trim())}</td>
+      <td class="small">${esc(r.team_member)}</td>
+      <td class="small muted">${esc(r.comments||'')}</td>
+      <td class="t-acts"><button class="btn sm ghost" onclick="openTxnEdit('${r.id}')">Edit</button><button class="btn sm ghost danger" onclick="deleteTxn('${r.id}')">Delete</button></td>
+    </tr>`).join(""):`<tr><td colspan="9"><div class="empty"><b>No movements yet</b>Record a Move, In, Out or Adjustment from the Stock screen.</div></td></tr>`
+  }</tbody>`;
+}
+function txnBatch(t){ if(t.batch)return t.batch; const p=state.products.find(x=>x.sku&&x.sku===t.sku); return p?p.batch:""; }
+
+/* ---------- edit / delete history ---------- */
+async function persistTxnUpdate(t){ if(mode==="cloud") await cloudWrite({kind:"upsert",table:"transactions",payload:t}); else saveLocal(); }
+async function removeTxn(id){ if(mode==="cloud") await cloudWrite({kind:"delete",table:"transactions",id}); else saveLocal(); }
+function txnProduct(t){ return state.products.find(p=>p.sku&&p.sku===t.sku)||state.products.find(p=>p.product_name===t.product_name&&(!t.batch||p.batch===t.batch)); }
+function applyDelta(t, sign){ // sign +1 applies the txn effect, -1 reverses it
+  const p=txnProduct(t); if(!p) return false;
+  const key=(t.location||"").trim()==="Mataatua"?"mataatua":"waitawa";
+  p[key]=(+p[key]||0)+sign*(+t.quantity||0);
+  return p;
+}
+function openTxnEdit(id){
+  const t=state.transactions.find(x=>x.id===id); if(!t)return;
+  const when=(()=>{const d=new Date(t.added);return isNaN(d)?"":new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);})();
+  const types=["IN","OUT","MOVE IN","MOVE OUT","ADJUSTMENT"];
+  const isMove=String(t.transaction_type).startsWith("MOVE");
+  modal(`<h3 class="disp">Edit movement</h3>
+  <p class="desc">${esc(t.product_name)}${t.batch?' · '+esc(t.batch):''}</p>
+  ${isMove?`<div class="preview" style="border-style:solid;border-color:#EBC9BD;background:var(--warn-bg)">Heads up: this is one half of a <b>Move</b>. Edit or delete its matching ${t.transaction_type==='MOVE OUT'?'MOVE IN':'MOVE OUT'} row too, or the two sheds won't balance.</div>`:''}
+  <div class="row2">
+    <div class="field"><label>Type</label><select id="e-type">${types.map(x=>`<option ${x===t.transaction_type?'selected':''}>${x}</option>`).join("")}</select></div>
+    <div class="field"><label>Location</label><select id="e-loc">${LOCATIONS.map(l=>`<option ${ (t.location||'').trim()===l?'selected':''}>${l}</option>`).join("")}</select></div>
+  </div>
+  <div class="field"><label>Quantity effect on stock</label><input id="e-qty" type="number" value="${+t.quantity||0}"/><div class="small muted" style="margin-top:5px">Signed: negative removes stock (OUT/MOVE OUT), positive adds (IN/MOVE IN). Editing this re-adjusts the batch balance.</div></div>
+  <div class="row2">
+    <div class="field"><label>When</label><input id="e-when" type="datetime-local" value="${when}"/></div>
+    <div class="field"><label>Team member</label><input id="e-by" value="${esc(t.team_member||'')}"/></div>
+  </div>
+  <div class="field"><label>Note</label><input id="e-note" value="${esc(t.comments||'')}"/></div>
+  <div class="modal-acts">
+    <button class="btn danger" onclick="deleteTxn('${id}')">Delete</button>
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn pri" onclick="saveTxnEdit('${id}')">Save</button>
+  </div>`);
+}
+async function saveTxnEdit(id){
+  const t=state.transactions.find(x=>x.id===id); if(!t)return;
+  const newType=$("#e-type").value, newLoc=$("#e-loc").value;
+  const newQty=+$("#e-qty").value||0, newBy=$("#e-by").value.trim(), newNote=$("#e-note").value.trim();
+  const whenVal=$("#e-when").value; const newAdded=whenVal?new Date(whenVal).toISOString():t.added;
+  // reverse the old effect, then apply the new one (matched product persisted)
+  const pOld=applyDelta(t,-1);
+  const before={...t};
+  t.transaction_type=newType; t.location=newLoc; t.quantity=newQty;
+  t.entered_quantity=Math.abs(newQty); t.team_member=newBy; t.comments=newNote; t.added=newAdded;
+  const pNew=applyDelta(t,1);
+  // persist affected product(s)
+  const touched=new Set();
+  if(pOld){ await persistProduct(pOld); touched.add(pOld.id); }
+  if(pNew&&!touched.has(pNew.id)){ await persistProduct(pNew); }
+  await persistTxnUpdate(t);
+  closeModal(); render(); renderTxns();
+  toast(pOld||pNew?"Saved and balance adjusted.":"Saved (no matching batch to adjust).");
+}
+async function deleteTxn(id){
+  const t=state.transactions.find(x=>x.id===id); if(!t)return;
+  if(!confirm(`Delete this ${t.transaction_type} of ${Math.abs(+t.quantity||0)}? The batch balance will be put back.`))return;
+  const p=applyDelta(t,-1);            // reverse its effect
+  if(p) await persistProduct(p);
+  state.transactions=state.transactions.filter(x=>x.id!==id);
+  await removeTxn(id);
+  closeModal(); render(); renderTxns();
+  toast(p?"Deleted and balance restored.":"Deleted (no matching batch to adjust).");
+}
+
+/* ---------- team view ---------- */
+function renderUsers(){
+  $("#userList").innerHTML=state.users.map(u=>`<div class="userrow">
+    <div class="ava">${esc(u.username[0]||'?').toUpperCase()}</div>
+    <div style="flex:1"><b>${esc(u.username)}</b>${u.id===curUser.id?' <span class="small muted">(you)</span>':''}</div>
+    <button class="btn sm danger" ${state.users.length<=1?'disabled':''} onclick="delUser('${u.id}')">Remove</button>
+  </div>`).join("");
+}
+async function addUser(){
+  const u=$("#nu-user").value.trim(), p=$("#nu-pass").value;
+  if(!u||!p){$("#nu-err").textContent="Enter a username and password.";return;}
+  if(state.users.some(x=>x.username.toLowerCase()===u.toLowerCase())){$("#nu-err").textContent="That username already exists.";return;}
+  const rec={id:uid("u"),username:u,password_hash:await sha256(p)};
+  state.users.push(rec); await persistUser(rec);
+  $("#nu-user").value="";$("#nu-pass").value="";$("#nu-err").textContent="";
+  renderUsers(); toast("Added "+u);
+}
+async function delUser(id){
+  if(state.users.length<=1){toast("Keep at least one login.");return;}
+  if(id===curUser.id&&!confirm("Remove your own login? You'll be signed out."))return;
+  state.users=state.users.filter(x=>x.id!==id); await removeUserDB(id);
+  if(id===curUser.id)return logout();
+  renderUsers(); toast("Removed.");
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  const cfg=JSON.parse(localStorage.getItem(LS_CFG)||"null")||{};
+  $("#sb-url").value=cfg.url||""; $("#sb-key").value=cfg.key||"";
+  const pill=$("#modePill");
+  pill.textContent= mode==="cloud"?"Cloud sync on":"Local only";
+  pill.className="modepill "+(mode==="cloud"?"mode-cloud":"mode-local");
+  if($("#woo-fn")){
+    $("#woo-fn").value=localStorage.getItem("manawa_woo_fn")||"";
+    const mapped=state.products.filter(p=>(p.woo_id||"").toString().trim()).length;
+    $("#woo-mapped").textContent=mapped?`${mapped} batch${mapped===1?'':'es'} linked to WooCommerce`:"No products linked yet — add WooCommerce IDs first.";
+  }
+  updateInstallUI();
+}
+let deferredPrompt=null;
+function isStandalone(){ return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone===true; }
+function isiOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+function updateInstallUI(){
+  const panel=$("#installPanel"); if(!panel) return;
+  if(isStandalone()){ panel.style.display="none"; return; }   // already installed
+  if(deferredPrompt){
+    panel.style.display=""; $("#installBtn").style.display="";
+    $("#installMsg").textContent="Add Manawa Stock to your home screen — it opens full-screen and works offline.";
+  } else if(isiOS()){
+    panel.style.display=""; $("#installBtn").style.display="none";
+    $("#installMsg").innerHTML="On iPhone/iPad: tap the <b>Share</b> button, then <b>Add to Home Screen</b>. It then opens full-screen and works offline.";
+  } else {
+    panel.style.display=""; $("#installBtn").style.display="none";
+    $("#installMsg").innerHTML="To install, use your browser menu → <b>Install app</b> / <b>Add to Home screen</b>. (If you don't see it, the app may already be installed.)";
+  }
+}
+async function installApp(){
+  if(!deferredPrompt){ updateInstallUI(); return; }
+  deferredPrompt.prompt();
+  try{ await deferredPrompt.userChoice; }catch(e){}
+  deferredPrompt=null; updateInstallUI(); toast("If you confirmed, the app is now on your home screen.");
+}
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; updateInstallUI(); });
+window.addEventListener("appinstalled",()=>{ deferredPrompt=null; updateInstallUI(); toast("Installed."); });
+async function syncWoo(){
+  if(mode!=="cloud"){toast("Turn on cloud sync first — WooCommerce push reads from Supabase.");return;}
+  const url=($("#woo-fn").value||"").trim();
+  if(!url){toast("Paste your woo-sync function URL.");return;}
+  localStorage.setItem("manawa_woo_fn",url);
+  const cfg=JSON.parse(localStorage.getItem(LS_CFG)||"null")||{};
+  toast("Pushing stock to WooCommerce…");
+  try{
+    const r=await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+(cfg.key||""),"Content-Type":"application/json"}});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok) toast(`Pushed stock for ${j.updated} product${j.updated===1?'':'s'} (using ${j.source}).`);
+    else toast("Sync error: "+(j.error||("HTTP "+r.status)));
+  }catch(e){toast("Sync failed: "+(e.message||e));}
+}
+async function connectCloud(){
+  const url=$("#sb-url").value.trim(), key=$("#sb-key").value.trim();
+  if(!url||!key){toast("Enter both the URL and key.");return;}
+  if(!window.supabase){toast("Supabase library didn't load — check your connection.");return;}
+  try{
+    const client=window.supabase.createClient(url,key);
+    const {error}=await client.from("products").select("id").limit(1);
+    if(error)throw error;
+    localStorage.setItem(LS_CFG,JSON.stringify({url,key}));
+    toast("Connected. Reloading…"); setTimeout(()=>location.reload(),700);
+  }catch(e){toast("Couldn't connect: "+(e.message||e));}
+}
+function disconnectCloud(){localStorage.removeItem(LS_CFG);toast("Back to local. Reloading…");setTimeout(()=>location.reload(),600);}
+async function wipeAll(){
+  const where = mode==="cloud" ? "the cloud — every device sharing this project" : "this device";
+  if(!confirm(`Wipe ALL products and movement history from ${where}?\n\nTeam logins are kept. This cannot be undone.`)) return;
+  if(mode==="cloud" && !(sb&&online)){ toast("Connect to the internet first to wipe cloud data."); return; }
+  const typed = prompt('Type  WIPE  to permanently delete all stock and history.');
+  if(typed!=="WIPE"){ toast("Cancelled — nothing was deleted."); return; }
+  if(mode==="cloud"){
+    try{
+      const d1=await sb.from("transactions").delete().not("id","is",null);
+      const d2=await sb.from("products").delete().not("id","is",null);
+      if(d1.error||d2.error) throw (d1.error||d2.error);
+    }catch(e){ toast("Cloud wipe failed: "+(e.message||e)); return; }
+  }
+  state.products=[]; state.transactions=[];
+  queue=[]; saveQueue();           // drop any pending writes so wiped data can't come back
+  if(mode==="local") saveLocal(); else saveCache();
+  closeModal(); render(); renderTxns();
+  toast("All products and history wiped.");
+}
+
+/* ---------- product add/edit modal ---------- */
+function openProduct(id){
+  const p=id?state.products.find(x=>x.id===id):null;
+  const f=k=>p?esc(p[k]):"";
+  modal(`<h3 class="disp">${p?'Edit product':'Add product'}</h3>
+  <p class="desc">${p?'Update batch details and balances.':'Create a new product/batch. Same name as an existing product groups them together.'}</p>
+  <div class="field"><label>Product name</label><input id="m-name" list="nameOptions" value="${f('product_name')}" onchange="onProductNameChange()" placeholder="Pick a product or type a new one"/>
+    <datalist id="nameOptions">${[...new Set(state.products.map(x=>x.product_name).filter(Boolean))].sort().map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+    <div class="small muted" style="margin-top:5px">Pick an existing name to add a batch to it, or type a new name to create a new product.</div></div>
+  <div class="row2">
+    <div class="field"><label>Batch</label><input id="m-batch" list="batchOptions" value="${f('batch')}" placeholder="e.g. BB2601M"/>
+      <datalist id="batchOptions">${[...new Set(state.products.map(x=>x.batch).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>
+    <div class="field"><label>Date</label><input id="m-date" type="date" value="${f('date')}"/></div>
+  </div>
+  <div class="field"><label>Jar / size</label><input id="m-jar" list="jarOptions" value="${f('jar_size')}" placeholder="Pick or type a size"/>
+      <datalist id="jarOptions">${[...new Set(state.products.map(x=>x.jar_size).filter(Boolean))].sort().map(j=>`<option value="${esc(j)}">`).join("")}</datalist></div>
+  <div class="row2">
+    <div class="field"><label><span class="locdot dot-w"></span>Waitawa qty</label><input id="m-w" type="number" value="${p?(+p.waitawa||0):0}"/></div>
+    <div class="field"><label><span class="locdot dot-m"></span>Mataatua qty</label><input id="m-m" type="number" value="${p?(+p.mataatua||0):0}"/></div>
+  </div>
+  <div class="field"><label>Original stock</label><input id="m-orig" type="number" value="${p?(+p.original_stock||0):0}"/><div class="small muted" style="margin-top:5px">Starting quantity for this batch (reference only). Leave 0 on a new batch to use the current total.</div></div>
+  <div class="row2">
+    <div class="field"><label>Reorder point</label><input id="m-min" type="number" value="${p?productThreshold(state.products.filter(x=>x.product_name===p.product_name)):0}"/><div class="small muted" style="margin-top:5px">Set once per product — applies to every batch of this name. Alerts when the combined total falls to or below it. 0 = no alert.</div></div>
+    <div class="field"><label>MGO</label><input id="m-mgo" list="mgoOptions" value="${f('mgo')}" placeholder="optional"/>
+      <datalist id="mgoOptions">${[...new Set(state.products.map(x=>x.mgo).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>
+  </div>
+  <div class="field"><label>Blend</label><input id="m-blend" list="blendOptions" value="${f('blend')}" placeholder="Pick or type a blend"/>
+    <datalist id="blendOptions">${[...new Set(state.products.map(x=>x.blend).filter(Boolean))].sort().map(b=>`<option value="${esc(b)}">`).join("")}</datalist></div>
+  <div class="field"><label>Comments</label><textarea id="m-comments" placeholder="Notes for the team…">${f('comments')}</textarea></div>
+  <div class="row2">
+    <div class="field"><label>WooCommerce product ID</label><input id="m-woo" value="${f('woo_id')}" placeholder="e.g. 1293"/></div>
+    <div class="field"><label>Variation ID <span class="muted" style="text-transform:none;font-weight:400">(only if variable)</span></label><input id="m-woovar" value="${f('woo_variation_id')}" placeholder="optional"/></div>
+  </div>
+  <div class="small muted" style="margin:-6px 0 12px">Links this product to your website. When the site sells this item, stock comes off Mataatua automatically. Set once per product. Leave blank if it isn't sold online; fill Variation ID only if the size is a variation of one product.</div>
+  <div class="modal-acts">
+    ${p?`<button class="btn danger" onclick="deleteProduct('${p.id}')">Delete</button>`:''}
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn pri" onclick="saveProduct('${id||''}')">${p?'Save changes':'Add product'}</button>
+  </div>`);
+}
+async function saveProduct(id){
+  const name=$("#m-name").value.trim();
+  if(!name){toast("Product name is required.");return;}
+  const data={
+    product_name:name, batch:$("#m-batch").value.trim(), jar_size:$("#m-jar").value.trim(),
+    date:$("#m-date").value.trim(),
+    waitawa:+$("#m-w").value||0, mataatua:+$("#m-m").value||0,
+    min_stock_alert:+$("#m-min").value||0, mgo:$("#m-mgo").value.trim(),
+    blend:$("#m-blend").value.trim(),
+    woo_id:$("#m-woo").value.trim(), woo_variation_id:$("#m-woovar").value.trim(),
+    comments:$("#m-comments").value.trim(),
+    original_stock:+$("#m-orig").value||0
+  };
+  let rec;
+  if(id){rec=state.products.find(x=>x.id===id);Object.assign(rec,data);}
+  else{ if(!data.original_stock)data.original_stock=data.waitawa+data.mataatua; rec={id:uid("p"),sku:uid("sku"),...data};state.products.push(rec);}
+  await persistProduct(rec);
+  // Product-level fields: apply the same reorder point and WooCommerce mapping to every batch of this product (name + blend + MGO).
+  const siblings=state.products.filter(x=>x.product_name===rec.product_name && (x.blend||"")===(rec.blend||"") && (x.mgo||"")===(rec.mgo||"") && x.id!==rec.id);
+  for(const s of siblings){
+    let changed=false;
+    if((+s.min_stock_alert||0)!==(+rec.min_stock_alert||0)){s.min_stock_alert=rec.min_stock_alert;changed=true;}
+    if((s.woo_id||"")!==(rec.woo_id||"")){s.woo_id=rec.woo_id;changed=true;}
+    if((s.woo_variation_id||"")!==(rec.woo_variation_id||"")){s.woo_variation_id=rec.woo_variation_id;changed=true;}
+    if(changed) await persistProduct(s);
+  }
+  closeModal(); render(); toast(id?"Saved.":"Product added.");
+}
+/* When the product name matches an existing product, show that product's reorder point. */
+function onProductNameChange(){
+  const name=($("#m-name").value||"").trim();
+  const matches=state.products.filter(x=>x.product_name===name);
+  if(matches.length){
+    $("#m-min").value=productThreshold(matches);
+    const woo=matches.find(x=>x.woo_id)||matches[0];
+    if($("#m-woo")) $("#m-woo").value=woo.woo_id||"";
+    if($("#m-woovar")) $("#m-woovar").value=woo.woo_variation_id||"";
+  }
+}
+async function deleteProduct(id){
+  if(!confirm("Delete this batch? Its history stays in the record."))return;
+  state.products=state.products.filter(x=>x.id!==id); await removeProduct(id);
+  closeModal(); render(); toast("Deleted.");
+}
+
+/* ---------- IN / OUT / ADJUSTMENT modal ---------- */
+function openTxn(id,type){
+  const p=state.products.find(x=>x.id===id);
+  const label={IN:"Stock in",OUT:"Stock out",ADJUSTMENT:"Adjust count"}[type];
+  const desc={IN:"Add new stock arriving at a shed.",OUT:"Remove stock (sold, used, written off).",ADJUSTMENT:"Correct a balance after a stocktake."}[type];
+  modal(`<h3 class="disp">${label}</h3><p class="desc">${esc(p.product_name)} · ${esc(p.batch||'no batch')} — ${desc}</p>
+  <div class="field"><label>Location</label>
+    <div class="seg" id="m-locseg">
+      ${LOCATIONS.map((l,i)=>`<button class="${i===0?'on':''}" data-v="${l}" onclick="segPick(this)">${l}</button>`).join("")}
+    </div>
+  </div>
+  <div class="field"><label>${type==="ADJUSTMENT"?"New counted quantity":"Quantity"}</label><input id="m-qty" type="number" min="0" value="" placeholder="0" oninput="txnPreview('${id}','${type}')"/></div>
+  <div class="preview" id="m-prev">Enter a quantity.</div>
+  <div class="field"><label>Note / comment</label><input id="m-note" placeholder="optional"/></div>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancel</button>
+  <button class="btn pri" onclick="commitTxn('${id}','${type}')">${label}</button></div>`);
+  modal._loc=LOCATIONS[0];
+}
+function segPick(b){b.parentElement.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");modal._loc=b.dataset.v;
+  const idtype=b.closest(".modal").dataset; }
+function curLoc(){return modal._loc||LOCATIONS[0];}
+function txnPreview(id,type){
+  const p=state.products.find(x=>x.id===id);const loc=curLoc();const key=loc==="Waitawa"?"waitawa":"mataatua";
+  const cur=+p[key]||0;const q=+$("#m-qty").value||0;let res;
+  if(type==="IN")res=cur+q; else if(type==="OUT")res=cur-q; else res=q;
+  const warn=res<0?' <b style="color:var(--warn)">— would go below zero</b>':'';
+  $("#m-prev").innerHTML=`${esc(loc)}: <b>${cur.toLocaleString()}</b> → <b>${res.toLocaleString()}</b>${warn}`;
+}
+async function commitTxn(id,type){
+  const p=state.products.find(x=>x.id===id);const loc=curLoc();const key=loc==="Waitawa"?"waitawa":"mataatua";
+  const cur=+p[key]||0;const q=+$("#m-qty").value||0;
+  if(q<0||(!q&&type!=="ADJUSTMENT")){toast("Enter a quantity.");return;}
+  let delta,entered=q;
+  if(type==="IN")delta=q; else if(type==="OUT")delta=-q; else delta=q-cur;
+  if(cur+ (type==="ADJUSTMENT"?delta:delta) <0){if(!confirm("This makes the balance negative. Continue?"))return;}
+  p[key]=cur+delta;
+  const tx={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:nowISO(),transaction_type:type,
+    entered_quantity:entered,quantity:delta,location:loc,team_member:curUser.username,comments:$("#m-note").value.trim()};
+  state.transactions.unshift(tx);
+  await persistProduct(p); await persistTxns([tx]);
+  closeModal(); render(); toast(type+" recorded.");
+}
+
+/* ---------- MOVE modal (single action, two ledger rows) ---------- */
+function openMove(id){
+  const p=state.products.find(x=>x.id===id);
+  modal(`<h3 class="disp">Move stock</h3><p class="desc">${esc(p.product_name)} · ${esc(p.batch||'no batch')} — transfer between sheds in one step.</p>
+  <div class="row2">
+    <div class="field"><label>From</label><select id="mv-from" onchange="movePreview('${id}')">
+      <option value="Waitawa">Waitawa · production</option><option value="Mataatua">Mataatua · labelling</option></select></div>
+    <div class="field"><label>To</label><select id="mv-to" onchange="movePreview('${id}')">
+      <option value="Mataatua">Mataatua · labelling</option><option value="Waitawa">Waitawa · production</option></select></div>
+  </div>
+  <div class="field"><label>Quantity to move</label><input id="mv-qty" type="number" min="0" placeholder="0" oninput="movePreview('${id}')"/></div>
+  <div class="preview" id="mv-prev">Enter a quantity.</div>
+  <div class="field"><label>Note / comment</label><input id="mv-note" placeholder="e.g. daily transfer for labelling"/></div>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancel</button>
+  <button class="btn pri" onclick="commitMove('${id}')">Move stock</button></div>`);
+}
+function movePreview(id){
+  const p=state.products.find(x=>x.id===id);const from=$("#mv-from").value,to=$("#mv-to").value,q=+$("#mv-qty").value||0;
+  if(from===to){$("#mv-prev").innerHTML='<b style="color:var(--warn)">Pick two different sheds.</b>';return;}
+  const fk=from==="Waitawa"?"waitawa":"mataatua",tk=to==="Waitawa"?"waitawa":"mataatua";
+  const fa=(+p[fk]||0)-q,ta=(+p[tk]||0)+q;
+  const warn=fa<0?' <b style="color:var(--warn)">— not enough at '+esc(from)+'</b>':'';
+  $("#mv-prev").innerHTML=`${esc(from)}: <b>${(+p[fk]||0).toLocaleString()}</b> → <b>${fa.toLocaleString()}</b><br>${esc(to)}: <b>${(+p[tk]||0).toLocaleString()}</b> → <b>${ta.toLocaleString()}</b>${warn}`;
+}
+async function commitMove(id){
+  const p=state.products.find(x=>x.id===id);const from=$("#mv-from").value,to=$("#mv-to").value,q=+$("#mv-qty").value||0;
+  if(from===to){toast("Pick two different sheds.");return;}
+  if(q<=0){toast("Enter a quantity.");return;}
+  const fk=from==="Waitawa"?"waitawa":"mataatua",tk=to==="Waitawa"?"waitawa":"mataatua";
+  if((+p[fk]||0)-q<0&&!confirm("Not enough at "+from+". Move anyway?"))return;
+  p[fk]=(+p[fk]||0)-q; p[tk]=(+p[tk]||0)+q;
+  const t=nowISO(),note=$("#mv-note").value.trim();
+  const out={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:t,transaction_type:"MOVE OUT",entered_quantity:q,quantity:-q,location:from,team_member:curUser.username,comments:note};
+  const inn={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:t,transaction_type:"MOVE IN",entered_quantity:q,quantity:q,location:to,team_member:curUser.username,comments:note};
+  state.transactions.unshift(inn,out);
+  await persistProduct(p); await persistTxns([out,inn]);
+  closeModal(); render(); toast(`Moved ${q} ${from} → ${to}.`);
+}
+
+/* ---------- excel export ---------- */
+function exportXlsx(){
+  const scope=($("#exportScope")&&$("#exportScope").value)||"all";
+  const keep=p=>scope==="jars"?total(p)>0:scope==="empty"?total(p)===0:true;
+  const prods=state.products.filter(keep);
+  // group the filtered batches for the grouped sheet
+  const gm=new Map();
+  prods.forEach(p=>{const name=p.product_name.trim(),blend=(p.blend||"").trim(),mgo=(p.mgo||"").trim(),k=name+"|||"+blend+"|||"+mgo;if(!gm.has(k))gm.set(k,{name,blend,mgo,items:[]});gm.get(k).items.push(p);});
+  const groups=[...gm.values()].map(({name,blend,mgo,items})=>{
+    const grand=items.reduce((s,x)=>s+total(x),0), threshold=productThreshold(items);
+    return {name,blend,mgo,items,
+      waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
+      mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      grand,threshold,low:threshold>0&&grand<=threshold};
+  }).sort((a,b)=>a.name.localeCompare(b.name)||a.blend.localeCompare(b.blend)||a.mgo.localeCompare(b.mgo));
+
+  const wb=XLSX.utils.book_new();
+  const layout=($("#exportLayout")&&$("#exportLayout").value)||"both";
+  if(layout==="grouped"||layout==="both"){
+    const g=[["Product","Blend","MGO","Batches","Waitawa","Mataatua","Total","Low stock?"]];
+    groups.forEach(x=>g.push([x.name,x.blend,x.mgo,x.items.length,x.waitawa,x.mataatua,x.grand,x.low?"LOW":""]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(g),"Stock (grouped)");
+  }
+  if(layout==="batches"||layout==="both"){
+    const b=[["Product","Batch","Date","Jar size","Blend","Waitawa","Mataatua","Total","Original Stock","Min alert","MGO","Woo ID","Comments"]];
+    prods.slice().sort((x,y)=>x.product_name.localeCompare(y.product_name)||String(x.batch).localeCompare(String(y.batch)))
+      .forEach(p=>b.push([p.product_name,p.batch,p.date||"",p.jar_size,p.blend,+p.waitawa||0,+p.mataatua||0,total(p),+p.original_stock||0,+p.min_stock_alert||0,p.mgo,p.woo_id||"",p.comments]));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(b),"Stock (batches)");
+  }
+  const t=[["When","Product","Batch","Type","Entered","Quantity","Location","Team member","Note"]];
+  [...state.transactions].sort((a,b2)=>new Date(b2.added)-new Date(a.added)).forEach(r=>
+    t.push([fmtDate(r.added),r.product_name,txnBatch(r),r.transaction_type,+r.entered_quantity||0,+r.quantity||0,(r.location||'').trim(),r.team_member,r.comments||""]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(t),"Transactions");
+  const d=new Date().toISOString().slice(0,10);
+  const tag=scope==="jars"?"_with-jars":scope==="empty"?"_empty":"";
+  XLSX.writeFile(wb,`Manawa_Honey_Stock${tag}_${d}.xlsx`);
+  toast(`Excel downloaded (${scope==="jars"?"batches with jars":scope==="empty"?"empty batches":"all batches"}).`);
+}
+
+/* ---------- excel import ---------- */
+function downloadTemplate(blank){
+  if(typeof XLSX==="undefined"){toast("Spreadsheet library not loaded — connect once online, then retry.");return;}
+  const head=["Product name","Batch","Date","Jar size","Waitawa","Mataatua","Original Stock","Reorder point","MGO","Blend","Comments","Woo ID"];
+  const rows=[head];
+  state.products.slice()
+    .sort((a,b)=>a.product_name.localeCompare(b.product_name)||String(a.batch||"").localeCompare(String(b.batch||"")))
+    .forEach(p=>rows.push([p.product_name,p.batch||"",p.date||"",p.jar_size||"",
+      blank?0:(+p.waitawa||0), blank?0:(+p.mataatua||0), blank?0:(+p.original_stock||0),
+      +p.min_stock_alert||0,p.mgo||"",p.blend||"",p.comments||"",p.woo_id||""]));
+  if(rows.length===1) rows.push(["Manuka 500g","BB2601M","","500g",0,0,0,50,"100+","Softset","",""]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Stock");
+  const d=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, blank?`Manawa_Honey_Stocktake_${d}.xlsx`:`Manawa_Honey_Import_Template_${d}.xlsx`);
+  toast(blank?"Blank count sheet downloaded — fill in the jar counts.":"Template downloaded — edit the numbers and re-import.");
+}
+let pendingImport=null;
+function onImportFile(ev){
+  const file=ev.target.files&&ev.target.files[0]; ev.target.value=""; // allow re-importing same file
+  if(!file)return;
+  if(typeof XLSX==="undefined"){toast("Spreadsheet library not loaded — connect once online, then retry.");return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{ parseImport(e.target.result, file.name); }
+    catch(err){ console.error(err); toast("Couldn't read that file."); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function parseImport(buf, fname){
+  const wb=XLSX.read(new Uint8Array(buf),{type:"array",cellDates:true});
+  const sheet=wb.SheetNames.find(n=>/batch|product|stock/i.test(n))||wb.SheetNames[0];
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,blankrows:false});
+  if(!aoa.length){toast("That sheet looks empty.");return;}
+  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const H=aoa[0].map(norm);
+  const idx=(...names)=>{for(const n of names){const i=H.indexOf(n);if(i>=0)return i;}return -1;};
+  const c={
+    name:idx("productname","product"), sku:idx("sku"), batch:idx("batch"),
+    jar:idx("jarsize","jar","size"), waitawa:idx("waitawa"), mataatua:idx("mataatua"),
+    stock:idx("stock"), min:idx("minstockalert","minalert","reorderpoint","min"),
+    mgo:idx("mgo"), comments:idx("comments","comment","notes","note"), blend:idx("blend"),
+    woo:idx("wooid","woocommerceproductid","woocommerceid","woo"), woovar:idx("variationid","woovariationid"),
+    orig:idx("originalstock","origstock","original"), date:idx("date","packed","packeddate","bestbefore","bbdate")
+  };
+  if(c.name<0){toast("No \u201cProduct name\u201d column found in that file.");return;}
+  const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,""));return isNaN(n)?0:n;};
+  const get=(r,i)=>i>=0&&r[i]!=null?String(r[i]).trim():"";
+  const fmtDateCell=v=>{
+    if(v==null||v==="")return"";
+    if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
+    if(typeof v==="number"){const d=new Date(Math.round((v-25569)*86400000));return isNaN(d)?String(v):d.toISOString().slice(0,10);}
+    return String(v).trim();
+  };
+  const stockOnly=c.waitawa<0&&c.mataatua<0&&c.stock>=0;
+  const present={
+    waitawa:c.waitawa>=0||stockOnly, mataatua:c.mataatua>=0, min:c.min>=0, original_stock:c.orig>=0, date:c.date>=0,
+    sku:c.sku>=0, batch:c.batch>=0, jar_size:c.jar>=0, mgo:c.mgo>=0,
+    blend:c.blend>=0, comments:c.comments>=0, woo_id:c.woo>=0, woo_variation_id:c.woovar>=0
+  };
+  const rows=[];
+  for(const r of aoa.slice(1)){
+    const name=get(r,c.name); if(!name)continue;
+    let w=c.waitawa>=0?num(r[c.waitawa]):0;
+    let m=c.mataatua>=0?num(r[c.mataatua]):0;
+    if(stockOnly) w=num(r[c.stock]); // single Stock column -> Waitawa
+    rows.push({
+      product_name:name, sku:get(r,c.sku), batch:get(r,c.batch), jar_size:get(r,c.jar),
+      date:c.date>=0?fmtDateCell(r[c.date]):"",
+      waitawa:w, mataatua:m, min_stock_alert:c.min>=0?num(r[c.min]):0,
+      original_stock:c.orig>=0?num(r[c.orig]):0,
+      mgo:get(r,c.mgo), blend:get(r,c.blend), comments:get(r,c.comments),
+      woo_id:get(r,c.woo), woo_variation_id:get(r,c.woovar)
+    });
+  }
+  if(!rows.length){toast("No product rows found.");return;}
+  pendingImport={rows,present};
+  // preview: how many match existing vs new (merge view)
+  const match=r=>(r.sku&&state.products.find(p=>p.sku===r.sku))||state.products.find(p=>p.product_name===r.product_name&&(p.batch||"")===(r.batch||""));
+  const updates=rows.filter(match).length, adds=rows.length-updates;
+  modal(`<h3 class="disp">Import stock</h3>
+  <p class="desc">${esc(fname)} — found <b>${rows.length}</b> row${rows.length===1?'':'s'} on sheet \u201c${esc(sheet)}\u201d.</p>
+  <div class="preview"><b>Merge</b> updates ${updates} existing batch${updates===1?'':'es'} and adds ${adds} new — keeps everything else.<br><b>Replace all</b> clears the current product list first, then loads these ${rows.length}.</div>
+  <p class="small muted" style="margin-bottom:14px">Either way, your transaction history is untouched. Replace all can't be undone — export a backup first if unsure.</p>
+  <div class="modal-acts" style="flex-wrap:wrap">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn danger" onclick="applyImport(true)">Replace all</button>
+    <button class="btn pri" onclick="applyImport(false)">Merge</button>
+  </div>`);
+}
+async function applyImport(replace){
+  if(!pendingImport||!pendingImport.rows.length){closeModal();return;}
+  const {rows,present}=pendingImport;
+  let added=0,updated=0;
+  if(replace){
+    const old=[...state.products]; state.products=[];
+    for(const o of old){ await removeProduct(o.id); }
+    for(const r of rows){ const rec={id:uid("p"),sku:r.sku||uid("sku"),original_stock:r.waitawa+r.mataatua,...r}; state.products.push(rec); await persistProduct(rec); added++; }
+  } else {
+    const STRINGS=["sku","batch","jar_size","mgo","blend","comments","woo_id","woo_variation_id","date"];
+    for(const r of rows){
+      const ex=(r.sku&&state.products.find(p=>p.sku===r.sku))||state.products.find(p=>p.product_name===r.product_name&&(p.batch||"")===(r.batch||""));
+      if(ex){
+        if(present.waitawa) ex.waitawa=r.waitawa;
+        if(present.mataatua) ex.mataatua=r.mataatua;
+        if(present.min) ex.min_stock_alert=r.min_stock_alert;
+        if(present.original_stock) ex.original_stock=r.original_stock;
+        for(const k of STRINGS){ if(present[k]&&r[k]!=="") ex[k]=r[k]; }
+        if(!ex.sku)ex.sku=uid("sku");
+        await persistProduct(ex); updated++;
+      } else {
+        const rec={id:uid("p"),sku:r.sku||uid("sku"),original_stock:r.waitawa+r.mataatua,...r};
+        state.products.push(rec); await persistProduct(rec); added++;
+      }
+    }
+  }
+  pendingImport=null; closeModal(); render();
+  toast(replace?`Replaced — ${added} loaded.`:`Imported — ${added} added, ${updated} updated.`);
+}
+
+/* ---------- modal plumbing ---------- */
+function modal(html){$("#modalHost").innerHTML=`<div class="scrim" onclick="if(event.target===this)closeModal()"><div class="modal" data-mode>${html}</div></div>`;}
+function closeModal(){ stopScanner(); $("#modalHost").innerHTML=""; }
+function renderAll(){render();renderSettings();updateSyncBadge();}
+
+/* ---------- barcodes: QR generation ---------- */
+function qrPayload(p){ return JSON.stringify({m:1,p:p.product_name,b:p.batch||""}); }
+function qrDataUrl(text,size){
+  if(typeof qrcode==="undefined")throw new Error("QR library not loaded");
+  const qr=qrcode(0,'M'); qr.addData(text); qr.make();
+  const n=qr.getModuleCount(), target=size||220, margin=4;
+  const cell=Math.max(2,Math.round(target/(n+margin*2)));
+  return qr.createDataURL(cell,margin);
+}
+async function openLabel(id){
+  const p=state.products.find(x=>x.id===id); if(!p)return;
+  modal(`<h3 class="disp">Label</h3><p class="desc">${esc(p.product_name)} · ${esc(p.batch||'no batch')}</p>
+    <div id="qrHost" style="display:flex;justify-content:center;padding:12px 0"><span class="muted small">Generating…</span></div>
+    <div class="preview" style="text-align:center">Scanning this opens <b>${esc(p.product_name)}</b> · batch <b>${esc(p.batch||'—')}</b>.</div>
+    <div class="modal-acts"><button class="btn" onclick="closeModal()">Close</button>
+    <button class="btn pri" onclick="printLabels(['${id}'])">Print</button></div>`);
+  try{ const url=await qrDataUrl(qrPayload(p),240);
+    $("#qrHost").innerHTML=`<img src="${url}" width="200" height="200" alt="QR" style="border:1px solid var(--line);border-radius:12px"/>`;
+  }catch(e){ $("#qrHost").innerHTML='<span class="muted small">Couldn\'t generate this label.</span>'; }
+}
+function printLabelsVisible(){
+  // labels for the batches currently shown on the Stock screen (respects search + filters + hide-empty)
+  const q=($("#q").value||"").toLowerCase().trim();
+  const f=($("#stockFilter")&&$("#stockFilter").value)||"all";
+  const hideEmpty=$("#hideEmpty")?$("#hideEmpty").checked:true;
+  const dropEmpty=hideEmpty&&f!=="zero"&&f!=="low";
+  const lowNames=new Set(groupProducts().filter(g=>g.low).map(g=>g.name));
+  const ids=state.products.filter(p=>{
+    if(dropEmpty&&total(p)===0)return false;
+    const passF=f==="instock"?total(p)>0:f==="zero"?total(p)===0:f==="low"?lowNames.has(p.product_name):f==="waitawa"?(+p.waitawa||0)>0:f==="mataatua"?(+p.mataatua||0)>0:true;
+    const passQ=!q||p.product_name.toLowerCase().includes(q)||(p.batch||"").toLowerCase().includes(q);
+    return passF&&passQ;
+  }).map(p=>p.id);
+  if(!ids.length){toast("No batches to label with the current filter.");return;}
+  printLabels(ids);
+}
+async function printLabels(ids){
+  const items=ids.map(id=>state.products.find(p=>p.id===id)).filter(Boolean);
+  if(!items.length)return;
+  toast(`Preparing ${items.length} label${items.length===1?'':'s'}…`);
+  let cells="";
+  for(const p of items){
+    let url=""; try{ url=await qrDataUrl(qrPayload(p),240); }catch(e){}
+    cells+=`<div class="lbl"><img src="${url}"/><div class="nm">${esc(p.product_name)}</div><div class="mt">${esc(p.batch||'')}${p.jar_size?' · '+esc(p.jar_size):''}</div></div>`;
+  }
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Manawa labels</title>
+  <style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:12px;color:#2A2218}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .lbl{border:1px solid #ccc;border-radius:8px;padding:8px;text-align:center;page-break-inside:avoid}
+    .lbl img{width:150px;height:150px}
+    .nm{font-weight:700;font-size:13px;margin-top:4px}.mt{font-size:11px;color:#555}
+    @media print{.no{display:none}}
+  </style></head><body>
+  <div class="no" style="margin-bottom:10px"><button onclick="window.print()">Print</button> — ${items.length} label${items.length===1?'':'s'}</div>
+  <div class="grid">${cells}</div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w){ toast("Allow pop-ups to print labels."); return; }
+  w.document.write(html); w.document.close();
+}
+
+/* ---------- barcodes: camera scanning ---------- */
+let _scanner=null;
+function stopScanner(){ if(_scanner){ try{ _scanner.stop().then(()=>{try{_scanner.clear()}catch(e){}}).catch(()=>{});}catch(e){} _scanner=null; } }
+function openScanner(){
+  if(typeof Html5Qrcode==="undefined"){toast("Scanner not loaded — connect once online, then retry.");return;}
+  modal(`<h3 class="disp">Scan a label</h3><p class="desc">Point the camera at a jar's QR code.</p>
+    <div id="reader" style="width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:220px"></div>
+    <div class="small muted" id="scanMsg" style="margin-top:10px">Starting camera…</div>
+    <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+  _scanner=new Html5Qrcode("reader");
+  _scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:230,height:230}},
+    onScan, ()=>{}).then(()=>{ const m=$("#scanMsg"); if(m)m.textContent="Line the QR up inside the box."; })
+    .catch(err=>{ const m=$("#scanMsg"); if(m)m.innerHTML='Couldn\'t open the camera. Check the browser\'s camera permission for this site.<br><span class="small">'+esc(String(err&&err.message||err))+'</span>'; });
+}
+function onScan(text){
+  let match=null;
+  try{ const d=JSON.parse(text); if(d&&d.m===1){ match=state.products.find(p=>p.product_name===d.p&&(p.batch||"")===(d.b||"")); } }catch(e){}
+  if(!match){ // try plain formats: batch code, sku, or woo id
+    const t=(text||"").trim();
+    match=state.products.find(p=>(p.batch||"")===t)||state.products.find(p=>p.sku===t)||state.products.find(p=>(p.woo_id||"")===t);
+  }
+  stopScanner();
+  if(match){ toast("Found "+match.product_name); openScanAction(match.id, text); }
+  else { openScanUnknown(text); }
+}
+function openScanAction(id,raw){
+  const p=state.products.find(x=>x.id===id); if(!p){closeModal();return;}
+  modal(`<h3 class="disp">${esc(p.product_name)}</h3><p class="desc">${esc(p.batch||'no batch')}${p.jar_size?' · '+esc(p.jar_size):''} — Waitawa ${(+p.waitawa||0).toLocaleString()} · Mataatua ${(+p.mataatua||0).toLocaleString()}</p>
+  <div class="seg" style="flex-wrap:wrap;gap:8px">
+    <button class="btn pri" style="flex:1" onclick="closeModal();openMove('${p.id}')">Move</button>
+    <button class="btn" style="flex:1" onclick="closeModal();openTxn('${p.id}','IN')">In</button>
+    <button class="btn" style="flex:1" onclick="closeModal();openTxn('${p.id}','OUT')">Out</button>
+    <button class="btn" style="flex:1" onclick="closeModal();openTxn('${p.id}','ADJUSTMENT')">Adjust</button>
+  </div>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Close</button>
+  <button class="btn" onclick="closeModal();openScanner()">Scan another</button></div>`);
+}
+function openScanUnknown(text){
+  modal(`<h3 class="disp">No match</h3>
+  <p class="desc">That code doesn't match a product in the app yet.</p>
+  <div class="preview">Scanned:<br><b>${esc((text||"").slice(0,120))}</b></div>
+  <p class="small muted" style="margin-bottom:14px">If this is a retail barcode, add it to the product's WooCommerce ID, or set a batch that matches, then it'll be recognised.</p>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Close</button>
+  <button class="btn pri" onclick="closeModal();openScanner()">Scan again</button></div>`);
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  await initStore();
+  const sess=JSON.parse(localStorage.getItem(SS_USER)||sessionStorage.getItem(SS_USER)||"null");
+  if(sess){const u=state.users.find(x=>x.id===sess.id);if(u){curUser=u;showApp();return;}}
+  $("#li-hint").textContent = mode==="local" ? "First time? Use admin / admin, then add your team under Team." : "";
+  $("#li-pass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+})();
+</script>
+</body>
+</html>

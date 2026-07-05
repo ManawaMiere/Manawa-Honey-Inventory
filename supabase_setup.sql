@@ -30,6 +30,7 @@ create table if not exists transactions (
   id text primary key,
   sku text,
   product_name text,
+  batch text,
   added timestamptz default now(),
   transaction_type text,
   entered_quantity numeric default 0,
@@ -38,6 +39,8 @@ create table if not exists transactions (
   team_member text,
   comments text
 );
+-- For projects created before this column existed:
+alter table transactions add column if not exists batch text;
 
 create table if not exists app_users (
   id text primary key,

@@ -1,84 +1,99 @@
 # Manawa Honey — Stock App
 
-A web app for tracking honey stock across **Waitawa** (production shed) and **Mataatua** (labelling shed), with shed transfers, full history, low-stock alerts, team logins, Excel export, and **offline support**. Works on phones and computers.
+A web app for tracking honey stock across **Waitawa** (production shed) and **Mataatua** (labelling shed): shed transfers, batch tracking, full history, low-stock alerts, team logins, Excel import/export, QR labels + camera scanning, offline support, and cloud sync shared across every device.
 
-It replaces the Mobile Inventory app. All ~30 products from your file are loaded, with duplicate names grouped (e.g. *Manuka 500g* and its 4 batches show as one product with batches underneath).
+The app now has your Supabase connection **built in**, so devices connect automatically — no per-device setup.
 
-## Files
+---
 
-- `index.html` — the app
-- `sw.js` — service worker (makes it load offline). Must sit next to index.html.
-- `manifest.json` — lets staff install it to the home screen
-- `icon.svg` — app icon
-- `supabase_setup.sql` — run once in Supabase to build the tables + load data
+## Files (keep them all in the same folder / same GitHub Pages site)
+
+- `index.html` — the app (your Supabase connection is baked in)
+- `sw.js` — service worker (offline support)
+- `manifest.json` — home-screen install
+- `icon.svg`, `icon-192.png`, `icon-512.png` — app icons (the bee)
+- `supabase_setup.sql` — run once in Supabase to build the tables
+- `Manawa_Honey_Import_Template.xlsx` — spreadsheet to bulk-load stock
 - `SETUP_GUIDE.md` — this file
 
-Keep all of these in the **same folder** (and the same folder on GitHub Pages). Offline support needs the app served over https or from `localhost` — GitHub Pages already is.
+---
+
+## One-time Supabase setup
+
+1. In your Supabase project → **SQL Editor** → **New query**.
+2. Paste all of `supabase_setup.sql` → **Run**. This creates the tables and the default `admin` login. It's safe to re-run any time (it only adds what's missing).
+
+That's it — the app already knows your Project URL and publishable key.
+
+**If sync ever gets stuck ("N waiting"),** it's almost always a missing column. Run this once and it clears:
+
+```sql
+alter table transactions add column if not exists batch text;
+alter table products add column if not exists date text;
+alter table products add column if not exists blend text;
+alter table products add column if not exists woo_id text;
+alter table products add column if not exists woo_variation_id text;
+```
 
 ---
 
-## 1. Open it (works straight away)
+## Deploy
 
-Open `index.html`, or drop the whole folder on your GitHub Pages site.
+Push all the files above to your **GitHub Pages** site (same folder). GitHub Pages is HTTPS, which the app needs for install, camera scanning and offline to work.
 
-**First sign-in:** username `admin`, password `admin`. Add your real team under the **Team** tab, then remove or change `admin`.
-
-Out of the box it stores data **on that one device**. To share stock across every phone and computer, turn on cloud sync (section 3).
-
-## Install on a phone (recommended for the sheds)
-
-Open the site in the phone's browser, then **Add to Home Screen** (Safari: Share → Add to Home Screen; Chrome: menu → Install app). It then opens like a normal app, full screen, and works offline.
+When you change any file later, bump the version in `sw.js` (e.g. `manawa-v6` → `manawa-v7`) so devices pick up the update on their next online visit.
 
 ---
 
-## 2. How staff use it
+## First run
 
-From the **Stock** screen, tap a product to open its batches, then use the buttons on a batch:
+Open the site. It auto-connects to cloud (Settings shows **Cloud sync (built-in)**).
 
-- **Move** — transfer between sheds in one step (defaults Waitawa → Mataatua, your daily transfer). Subtracts one shed, adds the other, and records both sides.
-- **In** — new stock arriving.
-- **Out** — stock leaving (sold, used, written off).
-- **Adjust** — fix a balance after a stocktake (enter the new counted number).
+**Sign in:** `admin` / `admin`. Add your real team under the **Team** tab, then remove or change `admin`. Anyone signed in can manage team logins.
 
-Every action takes an optional note, records who and when, and shows a before → after preview. A red **LOW** tag and a banner appear when a batch falls below its Min Stock Alert. Each product shows **Waitawa | Mataatua** side by side — moving stock shifts where it sits without changing the total.
+The app starts **empty** — load your stock with **Settings & Export → Import from .xlsx** (use the template), or add products in-app.
 
----
-
-## 3. Cloud sync (shared across devices)
-
-1. Supabase → **SQL Editor** → **New query** → paste all of `supabase_setup.sql` → **Run**.
-2. In the app → **Settings & Export**, paste your **Project URL** and **anon key** (Supabase → Project Settings → API) → **Save & connect**.
-
-Every device on the same project then shows the same live stock.
+### Stay logged in / install on phones
+- Tick **Stay logged in** at sign-in to stay signed in on that device.
+- **Install:** Android/Chrome → the **Install app** button in Settings. iPhone/iPad → Share → **Add to Home Screen**. It then opens full-screen and works offline.
 
 ---
 
-## 4. Working offline
+## Using it (staff)
 
-Once a device has opened the app online once, it keeps working with no signal:
+From the **Stock** screen, tap a product to open its batches, then use the batch buttons:
 
-- **The app loads offline** — the service worker caches it on first visit.
-- **Local-only mode** runs fully offline; everything is on the device.
-- **Cloud mode** keeps working offline too. Changes are saved on the device and **sync automatically when signal returns**. The badge in the top bar shows the state:
-  - **Synced** — everything's up to date.
-  - **Offline · N waiting** — you're offline and N changes are queued (tap to retry).
-  - **Syncing N…** — back online, sending queued changes now.
-  - **On this device** — local-only mode (cloud sync not turned on).
+- **Move** — transfer between sheds in one step (defaults Waitawa → Mataatua).
+- **In** — new stock arriving. **Out** — stock leaving. **Adjust** — fix a balance after a stocktake.
+- **Label** — print a QR label for that batch. **Edit** — change batch details.
 
-What needs a connection: the **very first** visit on a device (to cache the app), and the **first sign-in** in cloud mode (to fetch your team logins). After that, both work offline.
+**Scan** (toolbar) opens the camera; scan a jar's QR to jump straight to Move/In/Out/Adjust for that batch. **Labels** prints QR labels for whatever's currently shown.
 
-A note on conflicts: if two people edit the same batch while offline, the last change to reach Supabase wins. For normal shed use — different people, different products — this is rarely an issue.
+Products are grouped by **name + blend + MGO**, so different blends/grades show separately. Each product's **reorder point** is set once and applies to all its batches; low stock is judged on the combined total.
+
+Search matches product, batch, MGO, blend, and shed words ("waitawa"/"production", "mataatua"/"labelling"). The filter dropdown adds In stock, Zero, Low, and per-shed views.
 
 ---
 
-## Updating the app later
+## Sync & offline
 
-Because the service worker caches files, after you replace any file on GitHub Pages, bump the version so devices pick it up: open `sw.js` and change `manawa-v1` to `manawa-v2`. Phones refresh to the new version next time they're online.
+- The badge in the top bar shows the state: **Synced**, **Syncing N…**, **Offline · N waiting** (tap to sync now), or **On this device** (local only).
+- Once a device has loaded the app online once, it keeps working with no signal; changes queue and sync automatically when back online (and retry every 20s).
+- A device needs a connection for its **first** load and **first sign-in**; after that it's offline-capable.
 
 ---
 
-## Notes & honest limitations
+## Export / import / backup
 
-- Logins use a SHA-256 password hash — fine for a small internal team, not bank-grade. Can move to Supabase's built-in Auth later.
-- The SQL opens row-level security to the anon key so the app can read/write. Fine for an internal tool; lock down further if the keys ever go public.
+- **Export** a workbook (grouped + per-batch stock + full history). Choose layout (grouped / each batch separate) and scope (all / with jars / empty).
+- **Import** stock from a spreadsheet — Merge (update + add) or Replace all. Blank cells keep existing values.
+- **Download import template** gives a ready-to-fill sheet from live data.
+- **Wipe all data** (Settings) clears all products + history everywhere (keeps logins) — it asks you to type WIPE. Export a backup first.
+
+---
+
+## Notes & limitations
+
+- Logins use a SHA-256 hash — fine for an internal team, not bank-grade. Ask if you want to move to Supabase Auth.
+- The publishable key in the app is a **public** client key — safe to embed; access is controlled by row-level security. Never put the **secret/service_role** key in the app.
 - "Delete" removes a batch but its past movements stay in History.

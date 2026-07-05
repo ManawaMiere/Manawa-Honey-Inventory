@@ -8,6 +8,7 @@ create table if not exists products (
   batch text,
   jar_size text,
   original_stock numeric default 0,
+  labelled numeric default 0,
   min_stock_alert numeric default 0,
   waitawa numeric default 0,
   mataatua numeric default 0,
@@ -25,6 +26,7 @@ alter table products add column if not exists blend text;
 alter table products add column if not exists woo_id text;
 alter table products add column if not exists woo_variation_id text;
 alter table products add column if not exists date text;
+alter table products add column if not exists labelled numeric default 0;
 
 create table if not exists transactions (
   id text primary key,

@@ -2405,6 +2405,7 @@ nav.tabs button.on{background:var(--ink);color:#fff}
 .lowpill{background:var(--warn);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.03em}
 .blendtag{background:#EFE7DA;color:#8A5A2B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
 .mgotag{background:#EAF0E4;color:#4B6B2E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
+.lbltag{background:#E5F0F4;color:#1F6F8B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
 
 .batches{border-top:1px solid var(--line);background:#FCFAF4}
 .batch{display:grid;grid-template-columns:1.4fr .8fr .8fr 1.2fr;gap:10px;align-items:center;padding:11px 15px;border-bottom:1px solid var(--line)}
@@ -2819,6 +2820,7 @@ function groupProducts(){
       name, blend, mgo, key:name+"|||"+blend+"|||"+mgo, items,
       waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
       mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      labelled:items.reduce((s,x)=>s+(+x.labelled||0),0),
       grand, threshold,
       low: threshold>0 && grand<=threshold
     };
@@ -2865,6 +2867,7 @@ function render(){
     return {name:g.name,blend:g.blend,mgo:g.mgo,key:g.key,items,threshold:g.threshold,low:g.low,
       waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
       mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      labelled:items.reduce((s,x)=>s+(+x.labelled||0),0),
       grand:items.reduce((s,x)=>s+total(x),0)};
   }).filter(Boolean);
   const host=$("#groups");
@@ -2876,7 +2879,7 @@ function render(){
     const open=active||openGroups[g.key];
     const batches=g.items.map(p=>{
       return `<div class="batch">
-        <div><div class="b-id">${esc(p.batch||'No batch')}</div><div class="b-meta">${esc(p.jar_size||'')}${p.date?' · '+esc(p.date):''}${p.comments?' · 💬 '+esc(p.comments):''}</div></div>
+        <div><div class="b-id">${esc(p.batch||'No batch')}</div><div class="b-meta">${esc(p.jar_size||'')}${p.date?' · '+esc(p.date):''}${(+p.labelled||0)?' · '+(+p.labelled).toLocaleString()+' labelled':''}${p.comments?' · 💬 '+esc(p.comments):''}</div></div>
         <div class="b-loc w"><span class="locdot dot-w"></span>Waitawa <b>${(+p.waitawa||0).toLocaleString()}</b></div>
         <div class="b-loc m"><span class="locdot dot-m"></span>Mataatua <b>${(+p.mataatua||0).toLocaleString()}</b></div>
         <div class="b-acts">
@@ -2892,7 +2895,7 @@ function render(){
     return `<div class="group ${open?'open':''}">
       <div class="head" onclick="toggleGroup('${esc(g.key).replace(/'/g,"\\'")}')">
         <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
-        <div><div class="name">${esc(g.name)} ${g.mgo?`<span class="mgotag">MGO ${esc(g.mgo)}</span>`:''} ${g.blend?`<span class="blendtag">${esc(g.blend)}</span>`:''} ${g.low?'<span class="lowpill">LOW</span>':''}</div><div class="sub">${g.items.length} ${g.items.length===1?'batch':'batches'}${active?' shown':''}${g.low?` · ${g.grand.toLocaleString()} ≤ reorder ${g.threshold.toLocaleString()}`:''}</div></div>
+        <div><div class="name">${esc(g.name)} ${g.mgo?`<span class="mgotag">MGO ${esc(g.mgo)}</span>`:''} ${g.blend?`<span class="blendtag">${esc(g.blend)}</span>`:''} ${g.labelled?`<span class="lbltag">${g.labelled.toLocaleString()} labelled</span>`:''} ${g.low?'<span class="lowpill">LOW</span>':''}</div><div class="sub">${g.items.length} ${g.items.length===1?'batch':'batches'}${active?' shown':''}${g.low?` · ${g.grand.toLocaleString()} ≤ reorder ${g.threshold.toLocaleString()}`:''}</div></div>
         <div class="totals">
           <div class="tot w"><div class="n">${g.waitawa.toLocaleString()}</div><div class="l">Waitawa</div></div>
           <div class="tot m"><div class="n">${g.mataatua.toLocaleString()}</div><div class="l">Mataatua</div></div>
@@ -3131,7 +3134,10 @@ function openProduct(id){
     <div class="field"><label><span class="locdot dot-w"></span>Waitawa qty</label><input id="m-w" type="number" value="${p?(+p.waitawa||0):0}"/></div>
     <div class="field"><label><span class="locdot dot-m"></span>Mataatua qty</label><input id="m-m" type="number" value="${p?(+p.mataatua||0):0}"/></div>
   </div>
-  <div class="field"><label>Original stock</label><input id="m-orig" type="number" value="${p?(+p.original_stock||0):0}"/><div class="small muted" style="margin-top:5px">Starting quantity for this batch (reference only). Leave 0 on a new batch to use the current total.</div></div>
+  <div class="row2">
+    <div class="field"><label>Original stock</label><input id="m-orig" type="number" value="${p?(+p.original_stock||0):0}"/><div class="small muted" style="margin-top:5px">Starting quantity (reference). Leave 0 on a new batch to use the current total.</div></div>
+    <div class="field"><label>Labelled</label><input id="m-labelled" type="number" value="${p?(+p.labelled||0):0}"/><div class="small muted" style="margin-top:5px">How many jars of this batch have labels on.</div></div>
+  </div>
   <div class="row2">
     <div class="field"><label>Reorder point</label><input id="m-min" type="number" value="${p?productThreshold(state.products.filter(x=>x.product_name===p.product_name)):0}"/><div class="small muted" style="margin-top:5px">Set once per product — applies to every batch of this name. Alerts when the combined total falls to or below it. 0 = no alert.</div></div>
     <div class="field"><label>MGO</label><input id="m-mgo" list="mgoOptions" value="${f('mgo')}" placeholder="optional"/>
@@ -3162,7 +3168,8 @@ async function saveProduct(id){
     blend:$("#m-blend").value.trim(),
     woo_id:$("#m-woo").value.trim(), woo_variation_id:$("#m-woovar").value.trim(),
     comments:$("#m-comments").value.trim(),
-    original_stock:+$("#m-orig").value||0
+    original_stock:+$("#m-orig").value||0,
+    labelled:+$("#m-labelled").value||0
   };
   let rec;
   if(id){rec=state.products.find(x=>x.id===id);Object.assign(rec,data);}
@@ -3302,9 +3309,9 @@ function exportXlsx(){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(g),"Stock (grouped)");
   }
   if(layout==="batches"||layout==="both"){
-    const b=[["Product","Batch","Date","Jar size","Blend","Waitawa","Mataatua","Total","Original Stock","Min alert","MGO","Woo ID","Comments"]];
+    const b=[["Product","Batch","Date","Jar size","Blend","Waitawa","Mataatua","Total","Labelled","Original Stock","Min alert","MGO","Woo ID","Comments"]];
     prods.slice().sort((x,y)=>x.product_name.localeCompare(y.product_name)||String(x.batch).localeCompare(String(y.batch)))
-      .forEach(p=>b.push([p.product_name,p.batch,p.date||"",p.jar_size,p.blend,+p.waitawa||0,+p.mataatua||0,total(p),+p.original_stock||0,+p.min_stock_alert||0,p.mgo,p.woo_id||"",p.comments]));
+      .forEach(p=>b.push([p.product_name,p.batch,p.date||"",p.jar_size,p.blend,+p.waitawa||0,+p.mataatua||0,total(p),+p.labelled||0,+p.original_stock||0,+p.min_stock_alert||0,p.mgo,p.woo_id||"",p.comments]));
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(b),"Stock (batches)");
   }
   const t=[["When","Product","Batch","Type","Entered","Quantity","Location","Team member","Note"]];
@@ -3320,14 +3327,14 @@ function exportXlsx(){
 /* ---------- excel import ---------- */
 function downloadTemplate(blank){
   if(typeof XLSX==="undefined"){toast("Spreadsheet library not loaded — connect once online, then retry.");return;}
-  const head=["Product name","Batch","Date","Jar size","Waitawa","Mataatua","Original Stock","Reorder point","MGO","Blend","Comments","Woo ID"];
+  const head=["Product name","Batch","Date","Jar size","Waitawa","Mataatua","Labelled","Original Stock","Reorder point","MGO","Blend","Comments","Woo ID"];
   const rows=[head];
   state.products.slice()
     .sort((a,b)=>a.product_name.localeCompare(b.product_name)||String(a.batch||"").localeCompare(String(b.batch||"")))
     .forEach(p=>rows.push([p.product_name,p.batch||"",p.date||"",p.jar_size||"",
-      blank?0:(+p.waitawa||0), blank?0:(+p.mataatua||0), blank?0:(+p.original_stock||0),
+      blank?0:(+p.waitawa||0), blank?0:(+p.mataatua||0), blank?0:(+p.labelled||0), blank?0:(+p.original_stock||0),
       +p.min_stock_alert||0,p.mgo||"",p.blend||"",p.comments||"",p.woo_id||""]));
-  if(rows.length===1) rows.push(["Manuka 500g","BB2601M","","500g",0,0,0,50,"100+","Softset","",""]);
+  if(rows.length===1) rows.push(["Manuka 500g","BB2601M","","500g",0,0,0,0,50,"100+","Softset","",""]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Stock");
   const d=new Date().toISOString().slice(0,10);
@@ -3360,7 +3367,8 @@ function parseImport(buf, fname){
     stock:idx("stock"), min:idx("minstockalert","minalert","reorderpoint","min"),
     mgo:idx("mgo"), comments:idx("comments","comment","notes","note"), blend:idx("blend"),
     woo:idx("wooid","woocommerceproductid","woocommerceid","woo"), woovar:idx("variationid","woovariationid"),
-    orig:idx("originalstock","origstock","original"), date:idx("date","packed","packeddate","bestbefore","bbdate")
+    orig:idx("originalstock","origstock","original"), date:idx("date","packed","packeddate","bestbefore","bbdate"),
+    labelled:idx("labelled","labeled","labelledjars")
   };
   if(c.name<0){toast("No \u201cProduct name\u201d column found in that file.");return;}
   const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,""));return isNaN(n)?0:n;};
@@ -3373,7 +3381,7 @@ function parseImport(buf, fname){
   };
   const stockOnly=c.waitawa<0&&c.mataatua<0&&c.stock>=0;
   const present={
-    waitawa:c.waitawa>=0||stockOnly, mataatua:c.mataatua>=0, min:c.min>=0, original_stock:c.orig>=0, date:c.date>=0,
+    waitawa:c.waitawa>=0||stockOnly, mataatua:c.mataatua>=0, min:c.min>=0, original_stock:c.orig>=0, date:c.date>=0, labelled:c.labelled>=0,
     sku:c.sku>=0, batch:c.batch>=0, jar_size:c.jar>=0, mgo:c.mgo>=0,
     blend:c.blend>=0, comments:c.comments>=0, woo_id:c.woo>=0, woo_variation_id:c.woovar>=0
   };
@@ -3387,7 +3395,7 @@ function parseImport(buf, fname){
       product_name:name, sku:get(r,c.sku), batch:get(r,c.batch), jar_size:get(r,c.jar),
       date:c.date>=0?fmtDateCell(r[c.date]):"",
       waitawa:w, mataatua:m, min_stock_alert:c.min>=0?num(r[c.min]):0,
-      original_stock:c.orig>=0?num(r[c.orig]):0,
+      original_stock:c.orig>=0?num(r[c.orig]):0, labelled:c.labelled>=0?num(r[c.labelled]):0,
       mgo:get(r,c.mgo), blend:get(r,c.blend), comments:get(r,c.comments),
       woo_id:get(r,c.woo), woo_variation_id:get(r,c.woovar)
     });
@@ -3424,6 +3432,7 @@ async function applyImport(replace){
         if(present.mataatua) ex.mataatua=r.mataatua;
         if(present.min) ex.min_stock_alert=r.min_stock_alert;
         if(present.original_stock) ex.original_stock=r.original_stock;
+        if(present.labelled) ex.labelled=r.labelled;
         for(const k of STRINGS){ if(present[k]&&r[k]!=="") ex[k]=r[k]; }
         if(!ex.sku)ex.sku=uid("sku");
         await persistProduct(ex); updated++;

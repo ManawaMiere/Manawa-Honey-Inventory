@@ -2606,6 +2606,7 @@ tr:last-child td{border-bottom:0}
         <span id="modePill" class="modepill"></span>
       </div>
       <p class="sub">Local keeps data on this device. Cloud sync shares stock across every phone and computer in real time using your Supabase project.</p>
+      <p class="small" id="cloudNote" style="margin:-6px 0 14px;color:var(--muted)"></p>
       <div class="field"><label>Supabase project URL</label><input id="sb-url" placeholder="https://xxxx.supabase.co"/></div>
       <div class="field"><label>Supabase publishable (or anon) key</label><input id="sb-key" placeholder="sb_publishable_…  or  eyJhbGci…"/><div class="small muted" style="margin-top:5px">Use the publishable key (or legacy anon key) — never the secret / service_role key.</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -2632,13 +2633,27 @@ tr:last-child td{border-bottom:0}
 
 <script>
 const SEED = {"products":[],"transactions":[]};
+
+/* ─────────────────────────────────────────────────────────────
+   BUILT-IN CLOUD CONNECTION  (set these once for all devices)
+   Paste your Supabase Project URL and PUBLISHABLE (or anon) key
+   between the quotes below. Every device that opens the app will
+   then auto-connect to your project — no per-device setup.
+   The publishable key is a public client key (safe to embed);
+   your row-level security controls access. Do NOT paste the
+   secret / service_role key here.
+   ───────────────────────────────────────────────────────────── */
+const BUILTIN_CLOUD = {
+  url: "https://mbitzetcopjludhnjleb.supabase.co",
+  key: "sb_publishable_h0GjFO2XPTdMkakCsdfpzg_qc3M-jIu"
+};
 const LOCATIONS = ["Waitawa","Mataatua"];
 const LS_DATA="manawa_data_v1", LS_CFG="manawa_cfg_v1", SS_USER="manawa_user",
       LS_QUEUE="manawa_queue_v1", LS_CACHE="manawa_cloudcache_v1";
 
 let state={products:[],transactions:[],users:[]};
 let mode="local", sb=null, curUser=null, tab="dashboard", openGroups={};
-let online = navigator.onLine, queue = [];
+let online = navigator.onLine, queue = [], lastSyncError = "";
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -2669,7 +2684,10 @@ function loadCache(){try{return JSON.parse(localStorage.getItem(LS_CACHE))}catch
 
 async function initStore(){
   queue=loadQueue();
-  const cfg=JSON.parse(localStorage.getItem(LS_CFG)||"null");
+  const saved=JSON.parse(localStorage.getItem(LS_CFG)||"null");
+  const forceLocal=localStorage.getItem("manawa_forcelocal")==="1";
+  const builtin=(BUILTIN_CLOUD.url&&BUILTIN_CLOUD.key)?{url:BUILTIN_CLOUD.url,key:BUILTIN_CLOUD.key,builtin:true}:null;
+  const cfg = forceLocal ? null : (saved&&saved.url&&saved.key ? saved : builtin);   // saved overrides built-in
   if(cfg&&cfg.url&&cfg.key&&window.supabase){
     mode="cloud";
     try{ sb=window.supabase.createClient(cfg.url,cfg.key); }catch(e){ sb=null; }
@@ -2704,17 +2722,30 @@ async function applyOp(op){
 /* cloud write: try now, otherwise queue. Local state already updated by caller. */
 async function cloudWrite(op){
   saveCache();
-  if(!sb||!online){ enqueue(op); return; }
-  try{ await applyOp(op); await flushQueue(); }
-  catch(e){ online=false; enqueue(op); updateSyncBadge(); }
+  if(!sb){ enqueue(op); return; }
+  if(queue.length){ enqueue(op); await flushQueue(); return; }   // keep order: drain backlog first
+  try{ await applyOp(op); online=true; lastSyncError=""; updateSyncBadge(); }
+  catch(e){ lastSyncError=(e&&(e.message||e.msg))||String(e); online=false; enqueue(op); }
 }
 async function flushQueue(){
-  if(mode!=="cloud"||!sb||!online||!queue.length) return;
+  if(mode!=="cloud"||!sb||!queue.length) return;   // note: always attempt — don't gate on the online flag
   for(const op of [...queue]){
-    try{ await applyOp(op); queue=queue.filter(x=>x.qid!==op.qid); saveQueue(); }
-    catch(e){ online=false; break; }   // stop on first failure, keep the rest for next time
+    try{ await applyOp(op); queue=queue.filter(x=>x.qid!==op.qid); saveQueue(); online=true; lastSyncError=""; }
+    catch(e){ lastSyncError=(e&&(e.message||e.msg))||String(e); online=false; break; }
   }
   updateSyncBadge();
+}
+/* Manual "sync now" — ignores the stale offline flag, actually hits the network, and reports the real problem. */
+async function forceSync(){
+  if(mode!=="cloud"){ toast("Cloud sync isn't turned on for this device — set it up in Settings."); return; }
+  if(!sb){ toast("Not connected — re-enter your Supabase details in Settings."); return; }
+  toast("Syncing…"); lastSyncError="";
+  await flushQueue();
+  if(!queue.length){ try{ await pullCloud(); saveCache(); online=true; if(curUser) renderAll(); }
+    catch(e){ lastSyncError=(e&&(e.message||e.msg))||String(e); online=false; } }
+  updateSyncBadge();
+  if(queue.length||lastSyncError) toast("Sync problem: "+(lastSyncError||(queue.length+" still waiting")));
+  else toast("Synced.");
 }
 async function persistProduct(p){ if(mode==="cloud") await cloudWrite({kind:"upsert",table:"products",payload:p}); else saveLocal(); }
 async function removeProduct(id){ if(mode==="cloud") await cloudWrite({kind:"delete",table:"products",id}); else saveLocal(); }
@@ -2722,7 +2753,7 @@ async function persistTxns(arr){ if(mode==="cloud"){ for(const t of arr) await c
 async function persistUser(u){ if(mode==="cloud") await cloudWrite({kind:"upsert",table:"app_users",payload:u}); else saveLocal(); }
 async function removeUserDB(id){ if(mode==="cloud") await cloudWrite({kind:"delete",table:"app_users",id}); else saveLocal(); }
 
-/* connection changes */
+/* connection changes + steady background retry (self-heals a stuck queue) */
 window.addEventListener("offline",()=>{online=false;updateSyncBadge();});
 window.addEventListener("online",async()=>{
   online=true; updateSyncBadge();
@@ -2730,15 +2761,16 @@ window.addEventListener("online",async()=>{
   if(mode==="cloud"&&sb&&!queue.length){ try{ await pullCloud(); saveCache(); if(curUser) renderAll(); }catch(e){} }
   updateSyncBadge();
 });
+setInterval(()=>{ if(mode==="cloud"&&sb&&queue.length) flushQueue(); }, 20000);
 
 function updateSyncBadge(){
   const el=$("#syncBadge"); if(!el) return;
   if(mode!=="cloud"){ el.innerHTML='<span class="syncpill s-local" title="Data is stored on this device">On this device</span>'; return; }
   const n=queue.length;
-  if(!online&&n) el.innerHTML=`<span class="syncpill s-wait" onclick="flushQueue()" title="Tap to retry">Offline · ${n} waiting</span>`;
-  else if(!online) el.innerHTML='<span class="syncpill s-off">Offline</span>';
-  else if(n) el.innerHTML=`<span class="syncpill s-wait" onclick="flushQueue()">Syncing ${n}…</span>`;
-  else el.innerHTML='<span class="syncpill s-ok">Synced</span>';
+  if(!online&&n) el.innerHTML=`<span class="syncpill s-wait" onclick="forceSync()" title="Tap to sync now">Offline · ${n} waiting</span>`;
+  else if(!online) el.innerHTML='<span class="syncpill s-off" onclick="forceSync()" title="Tap to sync now">Offline</span>';
+  else if(n) el.innerHTML=`<span class="syncpill s-wait" onclick="forceSync()">Syncing ${n}…</span>`;
+  else el.innerHTML='<span class="syncpill s-ok" onclick="forceSync()">Synced</span>';
 }
 
 /* ---------- auth ---------- */
@@ -2989,11 +3021,16 @@ async function delUser(id){
 
 /* ---------- settings ---------- */
 function renderSettings(){
-  const cfg=JSON.parse(localStorage.getItem(LS_CFG)||"null")||{};
-  $("#sb-url").value=cfg.url||""; $("#sb-key").value=cfg.key||"";
+  const saved=JSON.parse(localStorage.getItem(LS_CFG)||"null")||{};
+  const builtinOn=!!(BUILTIN_CLOUD.url&&BUILTIN_CLOUD.key);
+  const active = (saved.url&&saved.key)?saved:(builtinOn?BUILTIN_CLOUD:{});
+  $("#sb-url").value=active.url||""; $("#sb-key").value=active.key||"";
   const pill=$("#modePill");
-  pill.textContent= mode==="cloud"?"Cloud sync on":"Local only";
+  pill.textContent= mode==="cloud"?(builtinOn&&!(saved.url&&saved.key)?"Cloud sync (built-in)":"Cloud sync on"):"Local only";
   pill.className="modepill "+(mode==="cloud"?"mode-cloud":"mode-local");
+  if($("#cloudNote")) $("#cloudNote").innerHTML = builtinOn
+    ? "This app has a built-in connection, so <b>every device is connected automatically</b> — no setup needed. The fields below are only for pointing a device at a different project."
+    : "Enter these once per device. Tip: to skip this on every device, paste your details into the built-in connection near the top of index.html.";
   if($("#woo-fn")){
     $("#woo-fn").value=localStorage.getItem("manawa_woo_fn")||"";
     const mapped=state.products.filter(p=>(p.woo_id||"").toString().trim()).length;
@@ -3048,11 +3085,12 @@ async function connectCloud(){
     const client=window.supabase.createClient(url,key);
     const {error}=await client.from("products").select("id").limit(1);
     if(error)throw error;
+    localStorage.removeItem("manawa_forcelocal");
     localStorage.setItem(LS_CFG,JSON.stringify({url,key}));
     toast("Connected. Reloading…"); setTimeout(()=>location.reload(),700);
   }catch(e){toast("Couldn't connect: "+(e.message||e));}
 }
-function disconnectCloud(){localStorage.removeItem(LS_CFG);toast("Back to local. Reloading…");setTimeout(()=>location.reload(),600);}
+function disconnectCloud(){localStorage.removeItem(LS_CFG);localStorage.setItem("manawa_forcelocal","1");toast("Back to local on this device. Reloading…");setTimeout(()=>location.reload(),600);}
 async function wipeAll(){
   const where = mode==="cloud" ? "the cloud — every device sharing this project" : "this device";
   if(!confirm(`Wipe ALL products and movement history from ${where}?\n\nTeam logins are kept. This cannot be undone.`)) return;

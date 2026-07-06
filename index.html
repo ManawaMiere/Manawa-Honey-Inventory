@@ -2405,7 +2405,8 @@ nav.tabs button.on{background:var(--ink);color:#fff}
 .lowpill{background:var(--warn);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.03em}
 .blendtag{background:#EFE7DA;color:#8A5A2B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
 .mgotag{background:#EAF0E4;color:#4B6B2E;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
-.lbltag{background:#E5F0F4;color:#1F6F8B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
+.labline{font-size:11px;color:var(--ok);font-weight:600;margin-top:2px}
+.lbltag{background:#E3F2E9;color:#2F8F5B;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.02em;vertical-align:middle}
 
 .batches{border-top:1px solid var(--line);background:#FCFAF4}
 .batch{display:grid;grid-template-columns:1.4fr .8fr .8fr 1.2fr;gap:10px;align-items:center;padding:11px 15px;border-bottom:1px solid var(--line)}
@@ -2431,6 +2432,7 @@ tr:last-child td{border-bottom:0}
 .t-MOVEIN{background:#E5F0F4;color:#1F6F8B}
 .t-MOVEOUT{background:#E5F0F4;color:#1F6F8B}
 .t-ADJUSTMENT{background:#F2EAD8;color:#946A11}
+.t-LABEL{background:#E3F2E9;color:#2F8F5B}
 .qpos{color:var(--ok);font-weight:600}.qneg{color:var(--warn);font-weight:600}
 .t-acts{white-space:nowrap;text-align:right}
 .t-acts .btn{padding:5px 9px}
@@ -2879,15 +2881,16 @@ function render(){
     const open=active||openGroups[g.key];
     const batches=g.items.map(p=>{
       return `<div class="batch">
-        <div><div class="b-id">${esc(p.batch||'No batch')}</div><div class="b-meta">${esc(p.jar_size||'')}${p.date?' · '+esc(p.date):''}${(+p.labelled||0)?' · '+(+p.labelled).toLocaleString()+' labelled':''}${p.comments?' · 💬 '+esc(p.comments):''}</div></div>
+        <div><div class="b-id">${esc(p.batch||'No batch')}</div><div class="b-meta">${esc(p.jar_size||'')}${p.date?' · '+esc(p.date):''}${p.comments?' · 💬 '+esc(p.comments):''}</div></div>
         <div class="b-loc w"><span class="locdot dot-w"></span>Waitawa <b>${(+p.waitawa||0).toLocaleString()}</b></div>
-        <div class="b-loc m"><span class="locdot dot-m"></span>Mataatua <b>${(+p.mataatua||0).toLocaleString()}</b></div>
+        <div class="b-loc m"><span class="locdot dot-m"></span>Mataatua <b>${(+p.mataatua||0).toLocaleString()}</b>${(+p.labelled||0)>0?`<div class="labline">${(+p.labelled||0).toLocaleString()} labelled</div>`:''}</div>
         <div class="b-acts">
           <button class="btn sm pri" onclick="openMove('${p.id}')">Move</button>
           <button class="btn sm" onclick="openTxn('${p.id}','IN')">In</button>
           <button class="btn sm" onclick="openTxn('${p.id}','OUT')">Out</button>
+          <button class="btn sm" onclick="openLabelJars('${p.id}')">Label</button>
           <button class="btn sm" onclick="openTxn('${p.id}','ADJUSTMENT')">Adjust</button>
-          <button class="btn sm ghost" onclick="openLabel('${p.id}')">Label</button>
+          <button class="btn sm ghost" onclick="openLabel('${p.id}')">QR</button>
           <button class="btn sm ghost" onclick="openProduct('${p.id}')">Edit</button>
         </div>
       </div>`;
@@ -2895,7 +2898,7 @@ function render(){
     return `<div class="group ${open?'open':''}">
       <div class="head" onclick="toggleGroup('${esc(g.key).replace(/'/g,"\\'")}')">
         <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
-        <div><div class="name">${esc(g.name)} ${g.mgo?`<span class="mgotag">MGO ${esc(g.mgo)}</span>`:''} ${g.blend?`<span class="blendtag">${esc(g.blend)}</span>`:''} ${g.labelled?`<span class="lbltag">${g.labelled.toLocaleString()} labelled</span>`:''} ${g.low?'<span class="lowpill">LOW</span>':''}</div><div class="sub">${g.items.length} ${g.items.length===1?'batch':'batches'}${active?' shown':''}${g.low?` · ${g.grand.toLocaleString()} ≤ reorder ${g.threshold.toLocaleString()}`:''}</div></div>
+        <div><div class="name">${esc(g.name)} ${g.mgo?`<span class="mgotag">MGO ${esc(g.mgo)}</span>`:''} ${g.blend?`<span class="blendtag">${esc(g.blend)}</span>`:''} ${(g.labelled||0)>0?`<span class="lbltag">${g.labelled.toLocaleString()} labelled</span>`:''} ${g.low?'<span class="lowpill">LOW</span>':''}</div><div class="sub">${g.items.length} ${g.items.length===1?'batch':'batches'}${active?' shown':''}${g.low?` · ${g.grand.toLocaleString()} ≤ reorder ${g.threshold.toLocaleString()}`:''}</div></div>
         <div class="totals">
           <div class="tot w"><div class="n">${g.waitawa.toLocaleString()}</div><div class="l">Waitawa</div></div>
           <div class="tot m"><div class="n">${g.mataatua.toLocaleString()}</div><div class="l">Mataatua</div></div>
@@ -2946,7 +2949,7 @@ function applyDelta(t, sign){ // sign +1 applies the txn effect, -1 reverses it
 function openTxnEdit(id){
   const t=state.transactions.find(x=>x.id===id); if(!t)return;
   const when=(()=>{const d=new Date(t.added);return isNaN(d)?"":new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);})();
-  const types=["IN","OUT","MOVE IN","MOVE OUT","ADJUSTMENT"];
+  const types=["IN","OUT","MOVE IN","MOVE OUT","ADJUSTMENT","LABEL"];
   const isMove=String(t.transaction_type).startsWith("MOVE");
   modal(`<h3 class="disp">Edit movement</h3>
   <p class="desc">${esc(t.product_name)}${t.batch?' · '+esc(t.batch):''}</p>
@@ -3136,7 +3139,7 @@ function openProduct(id){
   </div>
   <div class="row2">
     <div class="field"><label>Original stock</label><input id="m-orig" type="number" value="${p?(+p.original_stock||0):0}"/><div class="small muted" style="margin-top:5px">Starting quantity (reference). Leave 0 on a new batch to use the current total.</div></div>
-    <div class="field"><label>Labelled</label><input id="m-labelled" type="number" value="${p?(+p.labelled||0):0}"/><div class="small muted" style="margin-top:5px">How many jars of this batch have labels on.</div></div>
+    <div class="field"><label>Labelled (of Mataatua)</label><input id="m-lab" type="number" value="${p?(+p.labelled||0):0}"/><div class="small muted" style="margin-top:5px">How many Mataatua jars are labelled and ready to sell. Can't exceed Mataatua; drops when you sell.</div></div>
   </div>
   <div class="row2">
     <div class="field"><label>Reorder point</label><input id="m-min" type="number" value="${p?productThreshold(state.products.filter(x=>x.product_name===p.product_name)):0}"/><div class="small muted" style="margin-top:5px">Set once per product — applies to every batch of this name. Alerts when the combined total falls to or below it. 0 = no alert.</div></div>
@@ -3164,12 +3167,12 @@ async function saveProduct(id){
     product_name:name, batch:$("#m-batch").value.trim(), jar_size:$("#m-jar").value.trim(),
     date:$("#m-date").value.trim(),
     waitawa:+$("#m-w").value||0, mataatua:+$("#m-m").value||0,
+    labelled:Math.max(0,Math.min(+$("#m-lab").value||0, +$("#m-m").value||0)),
     min_stock_alert:+$("#m-min").value||0, mgo:$("#m-mgo").value.trim(),
     blend:$("#m-blend").value.trim(),
     woo_id:$("#m-woo").value.trim(), woo_variation_id:$("#m-woovar").value.trim(),
     comments:$("#m-comments").value.trim(),
-    original_stock:+$("#m-orig").value||0,
-    labelled:+$("#m-labelled").value||0
+    original_stock:+$("#m-orig").value||0
   };
   let rec;
   if(id){rec=state.products.find(x=>x.id===id);Object.assign(rec,data);}
@@ -3239,6 +3242,11 @@ async function commitTxn(id,type){
   if(type==="IN")delta=q; else if(type==="OUT")delta=-q; else delta=q-cur;
   if(cur+ (type==="ADJUSTMENT"?delta:delta) <0){if(!confirm("This makes the balance negative. Continue?"))return;}
   p[key]=cur+delta;
+  // Labelled is a subset of Mataatua: selling from Mataatua consumes labelled jars first; keep labelled ≤ Mataatua.
+  if(key==="mataatua"){
+    if(type==="OUT") p.labelled=Math.max(0,(+p.labelled||0)-q);
+    p.labelled=Math.max(0,Math.min(+p.labelled||0, +p.mataatua||0));
+  }
   const tx={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:nowISO(),transaction_type:type,
     entered_quantity:entered,quantity:delta,location:loc,team_member:curUser.username,comments:$("#m-note").value.trim()};
   state.transactions.unshift(tx);
@@ -3246,7 +3254,36 @@ async function commitTxn(id,type){
   closeModal(); render(); toast(type+" recorded.");
 }
 
-/* ---------- MOVE modal (single action, two ledger rows) ---------- */
+/* ---------- LABEL jars (mark Mataatua stock as labelled) ---------- */
+function openLabelJars(id){
+  const p=state.products.find(x=>x.id===id); if(!p)return;
+  const mata=+p.mataatua||0, lab=+p.labelled||0, unlab=Math.max(0,mata-lab);
+  modal(`<h3 class="disp">Label jars</h3><p class="desc">${esc(p.product_name)} · ${esc(p.batch||'no batch')}</p>
+  <div class="preview">At Mataatua: <b>${mata.toLocaleString()}</b> · already labelled <b>${lab.toLocaleString()}</b> · <b>${unlab.toLocaleString()}</b> plain to label</div>
+  <div class="field"><label>Jars to mark labelled</label><input id="lab-qty" type="number" min="0" max="${unlab}" placeholder="0" oninput="labPreview('${id}')"/></div>
+  <div class="preview" id="lab-prev">Enter a quantity.</div>
+  <div class="field"><label>Note / comment</label><input id="lab-note" placeholder="optional"/></div>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancel</button>
+  <button class="btn pri" onclick="commitLabel('${id}')">Mark labelled</button></div>`);
+}
+function labPreview(id){
+  const p=state.products.find(x=>x.id===id);const mata=+p.mataatua||0,lab=+p.labelled||0,unlab=Math.max(0,mata-lab);
+  const q=+$("#lab-qty").value||0;const res=Math.min(lab+q,mata);
+  const warn=q>unlab?` <b style="color:var(--warn)">— only ${unlab.toLocaleString()} plain jars available</b>`:'';
+  $("#lab-prev").innerHTML=`Labelled: <b>${lab.toLocaleString()}</b> → <b>${res.toLocaleString()}</b> of ${mata.toLocaleString()}${warn}`;
+}
+async function commitLabel(id){
+  const p=state.products.find(x=>x.id===id);const mata=+p.mataatua||0,lab=+p.labelled||0,unlab=Math.max(0,mata-lab);
+  let q=+$("#lab-qty").value||0;
+  if(q<=0){toast("Enter how many jars to label.");return;}
+  if(q>unlab){ if(!confirm(`Only ${unlab} plain jars at Mataatua. Label ${unlab}?`))return; q=unlab; }
+  p.labelled=Math.min(lab+q,mata);
+  const tx={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:nowISO(),transaction_type:"LABEL",
+    entered_quantity:q,quantity:0,location:"Mataatua",team_member:curUser.username,comments:$("#lab-note").value.trim()};
+  state.transactions.unshift(tx);
+  await persistProduct(p); await persistTxns([tx]);
+  closeModal(); render(); toast(`Labelled ${q}.`);
+}
 function openMove(id){
   const p=state.products.find(x=>x.id===id);
   modal(`<h3 class="disp">Move stock</h3><p class="desc">${esc(p.product_name)} · ${esc(p.batch||'no batch')} — transfer between sheds in one step.</p>
@@ -3277,6 +3314,8 @@ async function commitMove(id){
   const fk=from==="Waitawa"?"waitawa":"mataatua",tk=to==="Waitawa"?"waitawa":"mataatua";
   if((+p[fk]||0)-q<0&&!confirm("Not enough at "+from+". Move anyway?"))return;
   p[fk]=(+p[fk]||0)-q; p[tk]=(+p[tk]||0)+q;
+  // moving jars OUT of Mataatua may remove some labelled ones; keep labelled ≤ Mataatua (new arrivals are unlabelled)
+  p.labelled=Math.max(0,Math.min(+p.labelled||0, +p.mataatua||0));
   const t=nowISO(),note=$("#mv-note").value.trim();
   const out={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:t,transaction_type:"MOVE OUT",entered_quantity:q,quantity:-q,location:from,team_member:curUser.username,comments:note};
   const inn={id:uid("t"),sku:p.sku,product_name:p.product_name,batch:p.batch||"",added:t,transaction_type:"MOVE IN",entered_quantity:q,quantity:q,location:to,team_member:curUser.username,comments:note};
@@ -3298,6 +3337,7 @@ function exportXlsx(){
     return {name,blend,mgo,items,
       waitawa:items.reduce((s,x)=>s+(+x.waitawa||0),0),
       mataatua:items.reduce((s,x)=>s+(+x.mataatua||0),0),
+      labelled:items.reduce((s,x)=>s+(+x.labelled||0),0),
       grand,threshold,low:threshold>0&&grand<=threshold};
   }).sort((a,b)=>a.name.localeCompare(b.name)||a.blend.localeCompare(b.blend)||a.mgo.localeCompare(b.mgo));
 

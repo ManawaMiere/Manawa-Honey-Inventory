@@ -2604,6 +2604,11 @@ tr:last-child td{border-bottom:0}
       <p class="small muted" style="margin-top:10px"><b>Layout</b> chooses how stock is laid out: grouped rolls each product into one line; <b>Each batch separate</b> gives every batch its own row (so Puatane 3kg comes out as its 3 batches). The batches sheet always lists each batch by name. Import reads a sheet with columns like Product name, Batch, Jar size, Waitawa, Mataatua, Reorder point, MGO, Blend, Comments — re-importing a file exported here works directly.</p>
     </div>
     <div class="panel">
+      <h3 class="disp">Batch tools</h3>
+      <p class="sub">A batch code (e.g. BB2309K) can span several products. Set the blend, MGO and/or date for every product in that batch at once.</p>
+      <button class="btn pri" onclick="openBatchUpdate()">Update a batch</button>
+    </div>
+    <div class="panel">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
         <h3 class="disp" style="margin:0">Data storage</h3>
         <span id="modePill" class="modepill"></span>
@@ -3454,6 +3459,60 @@ function parseImport(buf, fname){
     <button class="btn danger" onclick="applyImport(true)">Replace all</button>
     <button class="btn pri" onclick="applyImport(false)">Merge</button>
   </div>`);
+}
+/* ---------- batch tools: update blend / MGO / date for a whole batch ---------- */
+function openBatchUpdate(){
+  const batches=[...new Set(state.products.map(p=>p.batch).filter(Boolean))].sort();
+  if(!batches.length){toast("No batches yet — add some products first.");return;}
+  const blendOpts=[...new Set(state.products.map(x=>x.blend).filter(Boolean))].sort().map(b=>`<option value="${esc(b)}">`).join("");
+  const mgoOpts=[...new Set(state.products.map(x=>x.mgo).filter(Boolean))].sort().map(b=>`<option value="${esc(b)}">`).join("");
+  modal(`<h3 class="disp">Update a batch</h3>
+  <p class="desc">Tick a field and set it for every product that shares the chosen batch.</p>
+  <div class="field"><label>Batch</label><select id="bb-batch" onchange="bbInfo()">
+    <option value="">Choose a batch…</option>
+    ${batches.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join("")}
+  </select></div>
+  <div class="preview" id="bb-info">Pick a batch to see what's in it.</div>
+  <label class="chk" style="margin-bottom:6px;width:100%"><input type="checkbox" id="bb-do-blend"/> Change blend</label>
+  <div class="field"><input id="bb-blend" list="bbBlendOpts" placeholder="Blend (blank = none)"/><datalist id="bbBlendOpts">${blendOpts}</datalist></div>
+  <label class="chk" style="margin-bottom:6px;width:100%"><input type="checkbox" id="bb-do-mgo"/> Change MGO</label>
+  <div class="field"><input id="bb-mgo" list="bbMgoOpts" placeholder="MGO (blank = none)"/><datalist id="bbMgoOpts">${mgoOpts}</datalist></div>
+  <label class="chk" style="margin-bottom:6px;width:100%"><input type="checkbox" id="bb-do-date"/> Change date</label>
+  <div class="field"><input id="bb-date" type="date"/></div>
+  <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancel</button>
+  <button class="btn pri" onclick="applyBatchUpdate()">Apply to batch</button></div>`);
+}
+function bbInfo(){
+  const b=$("#bb-batch").value, info=$("#bb-info");
+  if(!b){info.textContent="Pick a batch to see what's in it.";return;}
+  const rows=state.products.filter(p=>(p.batch||"")===b);
+  const uniq=k=>[...new Set(rows.map(r=>r[k]||""))];
+  const blends=uniq("blend"), mgos=uniq("mgo"), dates=uniq("date");
+  const fmt=a=>esc(a.map(x=>x||"(none)").join(", "));
+  info.innerHTML=`<b>${rows.length}</b> product${rows.length===1?'':'s'} in ${esc(b)}<br>Blend: <b>${fmt(blends)}</b> · MGO: <b>${fmt(mgos)}</b> · Date: <b>${fmt(dates)}</b>`;
+  if(blends.length===1&&blends[0]) $("#bb-blend").value=blends[0];
+  if(mgos.length===1&&mgos[0]) $("#bb-mgo").value=mgos[0];
+  if(dates.length===1&&dates[0]) $("#bb-date").value=dates[0];
+}
+async function applyBatchUpdate(){
+  const b=$("#bb-batch").value;
+  if(!b){toast("Choose a batch.");return;}
+  const rows=state.products.filter(p=>(p.batch||"")===b);
+  if(!rows.length){toast("No products in that batch.");return;}
+  const doBlend=$("#bb-do-blend").checked, doMgo=$("#bb-do-mgo").checked, doDate=$("#bb-do-date").checked;
+  if(!doBlend&&!doMgo&&!doDate){toast("Tick at least one field to change.");return;}
+  const blend=$("#bb-blend").value.trim(), mgo=$("#bb-mgo").value.trim(), date=$("#bb-date").value.trim();
+  const parts=[]; if(doBlend)parts.push(`blend "${blend||'(none)'}"`); if(doMgo)parts.push(`MGO "${mgo||'(none)'}"`); if(doDate)parts.push(`date "${date||'(none)'}"`);
+  if(!confirm(`Set ${parts.join(", ")} for all ${rows.length} product(s) in ${b}?`))return;
+  let n=0;
+  for(const p of rows){
+    let changed=false;
+    if(doBlend&&(p.blend||"")!==blend){p.blend=blend;changed=true;}
+    if(doMgo&&(p.mgo||"")!==mgo){p.mgo=mgo;changed=true;}
+    if(doDate&&(p.date||"")!==date){p.date=date;changed=true;}
+    if(changed){await persistProduct(p);n++;}
+  }
+  closeModal(); render(); toast(`Updated ${n} product${n===1?'':'s'} in ${b}.`);
 }
 async function applyImport(replace){
   if(!pendingImport||!pendingImport.rows.length){closeModal();return;}

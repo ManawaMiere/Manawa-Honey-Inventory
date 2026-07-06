@@ -1,5 +1,8 @@
-/* Manawa Honey — service worker. Caches the app shell so it loads with no connection. */
-const CACHE = "manawa-v6";
+/* Manawa Honey — service worker.
+   Strategy: NETWORK-FIRST for the app itself (index.html and same-origin files) so the
+   newest version always shows when online; falls back to cache only when offline.
+   CACHE-FIRST for the big third-party libraries (they rarely change). */
+const CACHE = "manawa-v7";
 const SHELL = [
   "./",
   "./index.html",
@@ -16,9 +19,8 @@ const SHELL = [
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
-    // Cache each item individually so one failure doesn't abort the whole install.
     await Promise.allSettled(SHELL.map(u => c.add(u)));
-    self.skipWaiting();
+    self.skipWaiting();                 // take over as soon as installed
   })());
 });
 
@@ -26,35 +28,43 @@ self.addEventListener("activate", e => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
-    await self.clients.claim();
+    await self.clients.claim();         // control open pages immediately
   })());
 });
 
+const isLib = url => /cdn\.jsdelivr\.net|cdn\.sheetjs\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url);
+
 self.addEventListener("fetch", e => {
   const req = e.request;
-  if (req.method !== "GET") return;                         // never cache writes
+  if (req.method !== "GET") return;
   const url = req.url;
 
-  // Supabase data calls: always go to the network (the app's own queue handles offline writes).
+  // Supabase data calls: always network (the app's queue handles offline writes).
   if (url.includes(".supabase.co")) return;
 
-  // Libraries + fonts: serve from cache, fall back to network and cache the result.
-  if (/cdn\.jsdelivr\.net|cdn\.sheetjs\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url)) {
+  // Third-party libraries + fonts: cache-first (fast, and they rarely change).
+  if (isLib(url)) {
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(resp => {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
+        const copy = resp.clone(); caches.open(CACHE).then(c => c.put(req, copy));
         return resp;
       }).catch(() => hit))
     );
     return;
   }
 
-  // App shell: cache-first; for page navigations fall back to the cached index when offline.
-  e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(resp => {
+  // The app itself (index.html, sw, icons, same-origin): NETWORK-FIRST.
+  // Get the freshest copy when online; update the cache; fall back to cache offline.
+  e.respondWith((async () => {
+    try {
+      const resp = await fetch(req, { cache: "no-store" });
       if (resp && resp.ok) { const copy = resp.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return resp;
-    }).catch(() => req.mode === "navigate" ? caches.match("./index.html") : undefined))
-  );
+    } catch (err) {
+      const hit = await caches.match(req);
+      if (hit) return hit;
+      if (req.mode === "navigate") return caches.match("./index.html");
+      throw err;
+    }
+  })());
 });

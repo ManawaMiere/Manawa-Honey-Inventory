@@ -3464,6 +3464,7 @@ async function xeroSyncNow(){
     if(data.error){ out.textContent = "Error: " + data.error; toast("Xero sync failed."); }
     else {
       out.textContent = `Processed ${data.transactionsProcessed} sale(s) from ${data.invoicesSeen} invoice(s).` +
+        (data.skippedNoSku ? ` ${data.skippedNoSku} line(s) skipped — no Item Code set on that line in Xero.` : "") +
         (data.skippedNoMapping ? ` ${data.skippedNoMapping} line(s) skipped — unmapped SKU(s): ${data.unmappedSkus.join(", ")}.` : "") +
         (data.skippedAmbiguous ? ` ${data.skippedAmbiguous} line(s) skipped — ambiguous MGO grade, needs a mapping fix.` : "") +
         (data.warnings && data.warnings.length ? ` ${data.warnings.length} warning(s) — check console.` : "");

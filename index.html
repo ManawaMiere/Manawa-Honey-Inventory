@@ -3393,33 +3393,104 @@ function clearTxnDateRange(){
   if($("#tqTo"))$("#tqTo").value="";
   renderTxns();
 }
+/* ---------- stock before/after (History columns) ----------
+   Each row's own `quantity` is already the exact delta that was applied
+   to a batch's waitawa/mataatua field when it was recorded (see
+   commitTxn, moveStock, deductFifoAcrossBatches on the server). So the
+   running balance for a given batch+location can be reconstructed
+   purely from the transactions themselves, without needing a stored
+   snapshot: take the batch's CURRENT value, subtract the sum of every
+   known delta for that batch+location to get the opening balance, then
+   walk forward in time adding each delta back on to get a before/after
+   pair for every row.
+
+   Two different ways a row links back to its batch, depending on
+   where it came from:
+   - Manual rows (IN/OUT/ADJUSTMENT/MOVE/LABEL) carry `sku`, the
+     batch's own internal id — a straightforward match against
+     state.products.
+   - Xero live-sync rows (source "xero") don't carry `sku` at all; the
+     specific batch they deducted from is only recorded inside
+     xero_line_item_id, as "...::batch:<batchId>:fifo|overflow" (a
+     single Xero invoice line can be split across several physical
+     batches via FIFO, so each resulting row needs its OWN batch id,
+     not just the product name).
+   - Backfill rows (source "xero_backfill") never touched stock at
+     all by design, so before/after isn't meaningful for them — shown
+     as "—".
+*/
+function txnLocKey(t){ return (t.location||"").trim().toLowerCase()==="waitawa" ? "waitawa" : "mataatua"; }
+function txnGroupKey(t){
+  if(t.source==="xero_backfill") return null; // never changed stock — not applicable
+  if(t.source==="xero" && t.xero_line_item_id){
+    const m=/::batch:([^:]+):/.exec(t.xero_line_item_id);
+    if(m) return {kind:"id", val:m[1]};
+  }
+  if(t.sku) return {kind:"sku", val:t.sku};
+  return null;
+}
+function computeStockBeforeAfter(){
+  const map={}, groups={};
+  state.transactions.forEach(t=>{
+    const g=txnGroupKey(t);
+    if(!g){ map[t.id]={before:null,after:null}; return; }
+    const key=g.kind+":"+g.val+"|"+txnLocKey(t);
+    (groups[key]=groups[key]||{g,locKey:txnLocKey(t),list:[]}).list.push(t);
+  });
+  Object.keys(groups).forEach(key=>{
+    const {g,locKey,list}=groups[key];
+    const p=g.kind==="id"?state.products.find(x=>x.id===g.val):state.products.find(x=>x.sku===g.val);
+    const sorted=list.slice().sort((a,b)=>new Date(a.added)-new Date(b.added)||String(a.id).localeCompare(String(b.id)));
+    if(!p){ sorted.forEach(t=>map[t.id]={before:null,after:null}); return; }
+    const current=+p[locKey]||0;
+    const totalDelta=sorted.reduce((s,t)=>s+(+t.quantity||0),0);
+    let running=current-totalDelta;
+    sorted.forEach(t=>{
+      const before=running;
+      running+=(+t.quantity||0);
+      map[t.id]={before,after:running};
+    });
+  });
+  return map;
+}
 function renderTxns(){
   const rows=filteredTxns();
+  const ba=computeStockBeforeAfter();
   const cls=t=>"t-"+t.replace(/\s/g,"");
-  $("#txnTable").innerHTML=`<thead><tr><th>When</th><th>Product</th><th>Batch</th><th>Type</th><th>Qty</th><th>Location</th><th>By</th><th>Note</th><th></th></tr></thead><tbody>${
-    rows.length?rows.map(r=>`<tr>
+  $("#txnTable").innerHTML=`<thead><tr><th>When</th><th>Product</th><th>Batch</th><th>Type</th><th>Qty</th><th>Stock before</th><th>Stock after</th><th>Location</th><th>By</th><th>Note</th><th></th></tr></thead><tbody>${
+    rows.length?rows.map(r=>{
+      const b=ba[r.id]||{};
+      const beforeTxt=b.before==null?'—':(+b.before).toLocaleString();
+      const afterTxt=b.after==null?'—':(+b.after).toLocaleString();
+      return `<tr>
       <td class="small muted">${fmtDate(r.added)}</td>
       <td>${esc(r.product_name)}</td>
       <td class="small">${esc(txnBatch(r)||'—')}</td>
       <td><span class="ttype ${cls(r.transaction_type)}">${esc(typeLabel(r.transaction_type))}</span></td>
       <td class="${(+r.quantity)>=0?'qpos':'qneg'}">${(+r.quantity)>=0?'+':''}${(+r.quantity).toLocaleString()}</td>
+      <td class="small muted">${beforeTxt}</td>
+      <td class="small muted">${afterTxt}</td>
       <td><span class="locdot ${r.location&&r.location.trim()==='Waitawa'?'dot-w':'dot-m'}"></span>${esc((r.location||'').trim())}</td>
       <td class="small">${esc(r.team_member)}</td>
       <td class="small muted">${esc(r.comments||'')}</td>
       <td class="t-acts"><button class="btn sm ghost" onclick="openDocket('${r.id}')">Docket</button><button class="btn sm ghost" onclick="openTxnEdit('${r.id}')">Edit</button><button class="btn sm ghost danger" onclick="deleteTxn('${r.id}')">Delete</button></td>
-    </tr>`).join(""):`<tr><td colspan="9"><div class="empty"><b>No movements yet</b>Record a Move, In, Out or Adjustment from the Stock screen.</div></td></tr>`
+    </tr>`;
+    }).join(""):`<tr><td colspan="11"><div class="empty"><b>No movements yet</b>Record a Move, In, Out or Adjustment from the Stock screen.</div></td></tr>`
   }</tbody>`;
 }
 function exportTxnsXlsx(){
   if(typeof XLSX==="undefined"){toast("Spreadsheet library not loaded — connect once online, then retry.");return;}
   const rows=filteredTxns();
   if(!rows.length){ toast("Nothing to export with the current search/filter."); return; }
-  const head=["When","Product","Batch","Type","Qty","Location","By","Note"];
+  const ba=computeStockBeforeAfter();
+  const head=["When","Product","Batch","Type","Qty","Stock before","Stock after","Location","By","Note"];
   const sheet=[head];
-  rows.forEach(r=>sheet.push([
+  rows.forEach(r=>{
+    const b=ba[r.id]||{};
+    sheet.push([
     fmtDate(r.added), r.product_name, txnBatch(r)||"", typeLabel(r.transaction_type),
-    +r.quantity||0, (r.location||'').trim(), r.team_member||"", r.comments||""
-  ]));
+    +r.quantity||0, b.before==null?"":b.before, b.after==null?"":b.after, (r.location||'').trim(), r.team_member||"", r.comments||""
+  ]);});
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheet),"History");
   const d=new Date().toISOString().slice(0,10);
